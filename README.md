@@ -2,7 +2,7 @@
 
 ## 📋 Project Overview
 
-A comprehensive implementation of blockchain technology for supply chain provenance tracking, counterfeit detection, and product authentication using cryptographic hashing and Merkle Trees.
+A comprehensive Java implementation of blockchain technology for supply chain provenance tracking, counterfeit detection, and product authentication using cryptographic hashing and Merkle Trees.
 
 ## 🎯 Core Objectives
 
@@ -21,27 +21,27 @@ Use Merkle Trees to achieve O(log n) verification complexity, enabling lightweig
 
 This project implements two critical data structures from your curriculum:
 
-#### 1. SHA-256 Cryptographic Hashing
+#### 1. SHA-256 Cryptographic Hashing (`HashUtils.java`)
 - **Purpose**: Create unforgeable digital fingerprints for transactions
 - **Properties**:
   - Deterministic: Same input always produces same output
   - Avalanche effect: Tiny input changes cause massive output changes
   - One-way function: Practically impossible to reverse
-- **Location**: `src/core/hash_utils.py`
+- **Location**: `src/main/java/com/supplychain/core/HashUtils.java`
 
-#### 2. Merkle Trees (Binary Hash Trees)
+#### 2. Merkle Trees (`MerkleTree.java`)
 - **Purpose**: Optimize storage and enable O(log n) verification
 - **Structure**:
   - Leaves: Individual transaction hashes
   - Internal nodes: Hash of concatenated child hashes
   - Root: Single hash summarizing all transactions (Merkle Root)
 - **Key Operations**:
-  - `build_tree()`: O(n) construction
-  - `generate_proof()`: O(log n) proof generation
-  - `verify_proof()`: O(log n) verification
-- **Location**: `src/core/merkle_tree.py`
+  - `buildTree()`: O(n) construction
+  - `generateProof()`: O(log n) proof generation
+  - `verifyProof()`: O(log n) verification
+- **Location**: `src/main/java/com/supplychain/core/MerkleTree.java`
 
-#### 3. Blockchain Ledger
+#### 3. Blockchain Ledger (`Blockchain.java`)
 - **Purpose**: Chain blocks together using cryptographic links
 - **Structure**: Each block contains:
   - Block index
@@ -50,76 +50,78 @@ This project implements two critical data structures from your curriculum:
   - Previous block's hash (creates the chain)
   - Current block's hash
 - **Immutability**: Modifying any block invalidates all subsequent blocks
-- **Location**: `src/core/blockchain.py`
+- **Location**: `src/main/java/com/supplychain/core/Blockchain.java`
 
 ## 📁 Project Structure
 
 ```
 Blockchain-based-smart-supply-chain-system/
-├── src/
-│   ├── core/
-│   │   ├── hash_utils.py          # SHA-256 hashing utilities
-│   │   ├── merkle_tree.py         # Merkle Tree implementation
-│   │   ├── blockchain.py          # Blockchain ledger
-│   │   └── __init__.py
-│   ├── supply_chain/
-│   │   ├── business_logic.py      # Supply chain operations
-│   │   └── __init__.py
-│   ├── benchmarking/
-│   │   ├── comparison.py          # SQL vs blockchain analysis
-│   │   └── __init__.py
-│   ├── main.py                    # Main entry point
-│   └── __init__.py
-├── README.md
-└── requirements.txt
+├── pom.xml                                    # Maven configuration
+├── build.sh                                   # Build & run helper script
+├── README.md                                  # This file
+├── QUICKSTART.md                              # Quick start guide
+├── PROJECT_SUMMARY.md                         # Project summary
+└── src/
+    └── main/
+        └── java/
+            └── com/
+                └── supplychain/
+                    ├── Main.java                         # Entry point with menu
+                    ├── core/
+                    │   ├── HashUtils.java               # SHA-256 implementation
+                    │   ├── MerkleTree.java               # Merkle Tree DSA
+                    │   └── Blockchain.java                # Blockchain ledger
+                    ├── supplychain/
+                    │   └── SupplyChainBlockchain.java    # Supply chain operations
+                    └── benchmarking/
+                        └── DatabaseBenchmark.java       # SQL comparison analysis
 ```
 
 ## 🚀 Quick Start
 
-### Installation
+### Prerequisites
 
-No external dependencies required! Uses Python's built-in libraries:
-- `hashlib` for SHA-256
-- `sqlite3` for benchmarking
-- Standard libraries for all DSA implementations
+- Java 11 or higher
+- Maven 3.6 or higher
+- SQLite JDBC driver (included via Maven)
+
+### Installation & Running
 
 ```bash
-# Run from project root
+# Clone the repository
 cd Blockchain-based-smart-supply-chain-system
+
+# Compile the project
+mvn clean compile
+
+# Run the application
+mvn exec:java -Dexec.mainClass="com.supplychain.Main"
+
+# Or run tests
+mvn test
+
+# Package as JAR
+mvn package
 ```
 
-### Run All Tests
+### Alternative: Build Script
 
 ```bash
-python3 src/main.py
-# Select option 4 to run everything
+./build.sh compile   # Compile the project
+./build.sh test      # Run tests
+./build.sh run       # Run the application
+./build.sh package   # Package as JAR
+./build.sh all       # Compile + test + package + run
 ```
 
-### Run Individual Phases
+### Alternative: Direct Compilation
 
-**Phase 1: SHA-256 Hashing**
 ```bash
-python3 src/core/hash_utils.py
-```
+# Compile all Java files
+javac -d bin src/main/java/com/supplychain/**/*.java
 
-**Phase 2: Merkle Tree**
-```bash
-python3 src/core/merkle_tree.py
-```
-
-**Phase 3: Blockchain Ledger**
-```bash
-python3 src/core/blockchain.py
-```
-
-**Phase 4: Supply Chain Demo**
-```bash
-python3 src/supply_chain/business_logic.py
-```
-
-**Phase 5: Benchmarking**
-```bash
-python3 src/benchmarking/comparison.py
+# Run the main class
+java -cp bin com.supplychain.Main
 ```
 
 ## 🎓 Educational Content
@@ -178,7 +180,6 @@ Based on benchmark results with 10,000 transactions:
 ✓ More storage efficient
 ✓ Flexible querying and reporting
 ✓ ACID transactions fully supported
-✓ Mature tooling and ecosystem
 
 ## 🔐 Security Model
 
@@ -226,8 +227,6 @@ Database Layer:     Internal operations, analytics, reporting
 
 ## 🧪 Testing
 
-### Unit Tests
-
 Each phase includes comprehensive unit tests:
 
 **Phase 1 Tests:**
@@ -250,129 +249,44 @@ Each phase includes comprehensive unit tests:
 - Product history tracing
 - Tamper detection
 
-### Demo Scenarios
-
-**Complete Product Journey:**
-1. Register manufacturer
-2. Manufacture products (creates genesis transactions)
-3. Transfer to distributor
-4. Transfer to wholesaler
-5. Transfer to retailer
-6. Sell to consumer
-7. Verify product authenticity
-
-**Counterfeit Detection:**
-- Products not in registry are detected
-- Products with invalid origins are flagged
-- Tampered transactions break chain validation
-
-## 📈 Benchmarking Results
-
-The system includes a comprehensive benchmarking suite comparing blockchain vs traditional SQL database:
-
-```python
-# Run benchmark
-results = benchmark.run_benchmark(num_transactions=10000, num_products=1000)
-```
-
-Key findings documented in `src/benchmarking/comparison.py`:
-- Performance metrics (insertion, query, verification)
-- Storage efficiency analysis
-- Trade-off documentation
-- Recommendations for different scenarios
+**Phase 4 Tests:**
+- Complete product lifecycle demonstration
+- Counterfeit detection
+- Batch verification
 
 ## 🔧 Implementation Details
 
-### Transaction Structure
+### Transaction Structure (Java Map)
 
-```python
-{
-    'product_id': 'PROD-001',
-    'sender': 'Factory-A',
-    'receiver': 'Distributor-B',
-    'location': 'Shanghai Manufacturing Hub',
-    'timestamp': '2026-08-28T10:30:00Z',
-    'metadata': {
-        'stage': 'manufacturing',
-        'batch_number': 'BATCH-2026-001'
-    }
+```java
+Map<String, Object> transaction = new LinkedHashMap<>();
+transaction.put("product_id", "PROD-001");
+transaction.put("sender", "Factory-A");
+transaction.put("receiver", "Distributor-B");
+transaction.put("location", "Shanghai Manufacturing Hub");
+transaction.put("timestamp", "2026-08-28T10:30:00Z");
+transaction.put("metadata", metadataMap);
+```
+
+### Block Structure (Java Class)
+
+```java
+public static class Block {
+    public int index;
+    public String timestamp;
+    public List<Map<String, Object>> transactions;
+    public String merkleRoot;
+    public String previousHash;
+    public int nonce;
+    public String hash;
 }
 ```
 
-### Block Structure
-
-```python
-{
-    'index': 1,
-    'timestamp': '2026-08-28T10:30:00Z',
-    'transactions': [...],
-    'merkle_root': 'abc123...',
-    'previous_hash': 'xyz789...',
-    'nonce': 0,
-    'hash': 'def456...'
-}
-```
-
-## 📚 Academic Context
-
-This project addresses real-world software engineering challenges:
-
-### 1. Distributed Systems
-- No single point of control
-- Shared truth across untrusting parties
-- Consensus on data validity
-
-### 2. Data Structures & Algorithms
-- Binary trees (Merkle Trees)
-- Cryptographic hashing
-- Linked lists (blockchain)
-- Complexity analysis
-
-### 3. Security
-- Tamper-evident design
-- Cryptographic proofs
-- Authentication vs authorization
-
-### 4. Database Systems
-- ACID properties
-- Query optimization
-- Storage efficiency
-- Benchmarking methodology
-
-## 🎓 Learning Outcomes
-
-After completing this project, you will understand:
-
-1. **Cryptographic Foundations**
-   - How SHA-256 hashing works
-   - Why hash functions are essential for security
-   - Avalanche effect and its importance
-
-2. **Data Structures**
-   - Merkle Trees and their applications
-   - When to use binary trees
-   - Complexity analysis of tree operations
-
-3. **Blockchain Technology**
-   - How blocks are chained together
-   - Why blockchain is tamper-evident
-   - The role of consensus in distributed systems
-
-4. **System Design Trade-offs**
-   - Performance vs security
-   - Centralized vs decentralized
-   - When to use specific technologies
-
-5. **Real-World Applications**
-   - Supply chain tracking
-   - Counterfeit detection
-   - Provenance verification
-
-## 📝 Documentation
+## 📚 Documentation
 
 All code includes:
-- Comprehensive docstrings
-- Type hints
+- Comprehensive Javadoc comments
+- Type safety with generics
 - Usage examples
 - Complexity analysis
 - Academic context
@@ -403,4 +317,4 @@ Blockchain Supply Chain Team
 
 **Remember**: Blockchain secures digital records but cannot verify physical reality. The "Oracle Problem" remains the fundamental challenge connecting digital systems to the physical world. The solution requires IoT, RFID, and physical inspections in addition to blockchain technology.
 
-For questions or discussions about this implementation, refer to the detailed comments in each source file.
+For questions or discussions about this implementation, refer to the detailed Javadoc comments in each source file.

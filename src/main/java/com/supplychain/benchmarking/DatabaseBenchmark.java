@@ -53,18 +53,16 @@ public class DatabaseBenchmark {
         sqlStatement = sqlConnection.createStatement();
 
         // Create transaction table
-        sqlStatement.execute("""
-            CREATE TABLE IF NOT EXISTS transactions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                product_id TEXT NOT NULL,
-                sender TEXT NOT NULL,
-                receiver TEXT NOT NULL,
-                location TEXT NOT NULL,
-                timestamp TEXT NOT NULL,
-                block_number INTEGER,
-                metadata TEXT
-            )
-        """);
+        sqlStatement.execute("    CREATE TABLE IF NOT EXISTS transactions (\n"
+                + "        id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+                + "        product_id TEXT NOT NULL,\n"
+                + "        sender TEXT NOT NULL,\n"
+                + "        receiver TEXT NOT NULL,\n"
+                + "        location TEXT NOT NULL,\n"
+                + "        timestamp TEXT NOT NULL,\n"
+                + "        block_number INTEGER,\n"
+                + "        metadata TEXT\n"
+                + "    )\n");
 
         // Create indexes for faster queries
         sqlStatement.execute("CREATE INDEX IF NOT EXISTS idx_product_id ON transactions(product_id)");
@@ -405,27 +403,25 @@ public class DatabaseBenchmark {
         System.out.println("ACADEMIC COMPARISON: BLOCKCHAIN vs TRADITIONAL DATABASE");
         System.out.println("Supply Chain Tracking System Analysis");
         System.out.println("======================================================================");
-        System.out.println("""
-                This analysis compares two approaches to supply chain tracking:
-
-                1. BLOCKCHAIN-BASED (Our Implementation)
-                   - Immutable ledger with cryptographic linking
-                   - Merkle Trees for efficient verification
-                   - SHA-256 hashing for tamper detection
-                   - Decentralized trust model
-
-                2. TRADITIONAL SQL DATABASE (Comparison Baseline)
-                   - Standard relational database
-                   - Indexed queries for fast retrieval
-                   - ACID transactions
-                   - Centralized trust model
-
-                KEY METRICS:
-                  • Performance: Transaction throughput and latency
-                  • Storage: Space efficiency
-                  • Security: Tamper resistance and integrity
-                  • Trust: Centralization vs decentralization
-                """);
+        System.out.println("This analysis compares two approaches to supply chain tracking:\n"
+                + "\n"
+                + "1. BLOCKCHAIN-BASED (Our Implementation)\n"
+                + "   - Immutable ledger with cryptographic linking\n"
+                + "   - Merkle Trees for efficient verification\n"
+                + "   - SHA-256 hashing for tamper detection\n"
+                + "   - Decentralized trust model\n"
+                + "\n"
+                + "2. TRADITIONAL SQL DATABASE (Comparison Baseline)\n"
+                + "   - Standard relational database\n"
+                + "   - Indexed queries for fast retrieval\n"
+                + "   - ACID transactions\n"
+                + "   - Centralized trust model\n"
+                + "\n"
+                + "KEY METRICS:\n"
+                + "  • Performance: Transaction throughput and latency\n"
+                + "  • Storage: Space efficiency\n"
+                + "  • Security: Tamper resistance and integrity\n"
+                + "  • Trust: Centralization vs decentralization\n");
 
         try {
             DatabaseBenchmark benchmark = new DatabaseBenchmark();
@@ -514,76 +510,72 @@ public class DatabaseBenchmark {
      * Print academic analysis.
      */
     private static void printAnalysis() {
-        System.out.println("""
-                ANALYS
-
-IS: WHEN TO USE BLOCKCHAIN FOR SUPPLY CHAIN
-                ==================================================
-
-                The Oracle Problem (Critical Limitation):
-                -----------------------------------------
-                Even with perfect blockchain technology, we cannot solve the fundamental
-                problem of connecting digital records to physical reality:
-
-                  BLOCKCHAIN SECURES: Digital transaction records ✓
-                  BLOCKCHAIN CANNOT SECURE: Physical product authenticity ✗
-
-                Example: A corrupt factory worker could place authentic QR codes on
-                counterfeit products. The blockchain would perfectly record the lie.
-
-                Solution: IoT sensors, RFID, and physical inspections must supplement
-                blockchain verification.
-
-                Engineering Trade-offs:
-                -----------------------
-                1. PERFORMANCE COST
-                   - SHA-256 hashing: ~0.1-0.5 ms per operation
-                   - Merkle tree construction: O(n) for building, O(log n) for proof
-                   - Block chaining: Adds verification overhead
-
-                   SQL INSERT: ~0.01-0.1 ms (10-50x faster)
-
-                2. STORAGE OVERHEAD
-                   - Each block stores: Previous hash, Merkle root, metadata
-                   - Redundant hash storage for verification
-                   - ~2-5x more storage than equivalent SQL
-
-                3. COMPLEXITY INCREASE
-                   - More complex implementation
-                   - Requires understanding of cryptography
-                   - Harder to debug and maintain
-                   - Consensus mechanisms needed (in distributed deployment)
-
-                When Blockchain IS the Right Choice:
-                ------------------------------------
-                ✓ Multi-party supply chains with low trust
-                ✓ Regulatory requirements for immutable audit trails
-                ✓ High-value products (luxury goods, pharmaceuticals)
-                ✓ Value chains where authenticity verification is critical
-                ✓ Scenarios requiring cryptographic proof of provenance
-
-                When SQL is the Right Choice:
-                -----------------------------
-                ✓ Single-company supply chain (internal tracking)
-                ✓ High-volume, low-value products
-                ✓ Performance-critical applications
-                ✓ When traditional database features are needed (joins, complex queries)
-                ✓ Smaller teams without blockchain expertise
-
-                Hybrid Approach (Best of Both Worlds):
-                --------------------------------------
-                Consider using blockchain for:
-                  - High-value/high-risk product verification
-                  - Multi-party trust boundaries
-                  - Regulatory compliance records
-
-                And SQL/database for:
-                  - Internal operations and analytics
-                  - High-frequency transactions
-                  - Reporting and business intelligence
-
-                This approach optimizes for both security AND performance.
-                """);
+        System.out.println("                ANALYSIS: WHEN TO USE BLOCKCHAIN FOR SUPPLY CHAIN\n"
+                + "                ==================================================\n"
+                + "\n"
+                + "                The Oracle Problem (Critical Limitation):\n"
+                + "                -----------------------------------------\n"
+                + "                Even with perfect blockchain technology, we cannot solve the fundamental\n"
+                + "                problem of connecting digital records to physical reality:\n"
+                + "\n"
+                + "                  BLOCKCHAIN SECURES: Digital transaction records ✓\n"
+                + "                  BLOCKCHAIN CANNOT SECURE: Physical product authenticity ✗\n"
+                + "\n"
+                + "                Example: A corrupt factory worker could place authentic QR codes on\n"
+                + "                counterfeit products. The blockchain would perfectly record the lie.\n"
+                + "\n"
+                + "                Solution: IoT sensors, RFID, and physical inspections must supplement\n"
+                + "                blockchain verification.\n"
+                + "\n"
+                + "                Engineering Trade-offs:\n"
+                + "                -----------------------\n"
+                + "                1. PERFORMANCE COST\n"
+                + "                   - SHA-256 hashing: ~0.1-0.5 ms per operation\n"
+                + "                   - Merkle tree construction: O(n) for building, O(log n) for proof\n"
+                + "                   - Block chaining: Adds verification overhead\n"
+                + "\n"
+                + "                   SQL INSERT: ~0.01-0.1 ms (10-50x faster)\n"
+                + "\n"
+                + "                2. STORAGE OVERHEAD\n"
+                + "                   - Each block stores: Previous hash, Merkle root, metadata\n"
+                + "                   - Redundant hash storage for verification\n"
+                + "                   - ~2-5x more storage than equivalent SQL\n"
+                + "\n"
+                + "                3. COMPLEXITY INCREASE\n"
+                + "                   - More complex implementation\n"
+                + "                   - Requires understanding of cryptography\n"
+                + "                   - Harder to debug and maintain\n"
+                + "                   - Consensus mechanisms needed (in distributed deployment)\n"
+                + "\n"
+                + "                When Blockchain IS the Right Choice:\n"
+                + "                ------------------------------------\n"
+                + "                ✓ Multi-party supply chains with low trust\n"
+                + "                ✓ Regulatory requirements for immutable audit trails\n"
+                + "                ✓ High-value products (luxury goods, pharmaceuticals)\n"
+                + "                ✓ Value chains where authenticity verification is critical\n"
+                + "                ✓ Scenarios requiring cryptographic proof of provenance\n"
+                + "\n"
+                + "                When SQL is the Right Choice:\n"
+                + "                -----------------------------\n"
+                + "                ✓ Single-company supply chain (internal tracking)\n"
+                + "                ✓ High-volume, low-value products\n"
+                + "                ✓ Performance-critical applications\n"
+                + "                ✓ When traditional database features are needed (joins, complex queries)\n"
+                + "                ✓ Smaller teams without blockchain expertise\n"
+                + "\n"
+                + "                Hybrid Approach (Best of Both Worlds):\n"
+                + "                --------------------------------------\n"
+                + "                Consider using blockchain for:\n"
+                + "                  - High-value/high-risk product verification\n"
+                + "                  - Multi-party trust boundaries\n"
+                + "                  - Regulatory compliance records\n"
+                + "\n"
+                + "                And SQL/database for:\n"
+                + "                  - Internal operations and analytics\n"
+                + "                  - High-frequency transactions\n"
+                + "                  - Reporting and business intelligence\n"
+                + "\n"
+                + "                This approach optimizes for both security AND performance.\n");
     }
 
     public static void main(String[] args) {
