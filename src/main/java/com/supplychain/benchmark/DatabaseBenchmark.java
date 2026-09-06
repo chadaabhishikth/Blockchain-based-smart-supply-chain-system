@@ -1,95 +1,128 @@
-package com.supplychain.benchmarking;
+package com.supplychain.benchmark;
 
-import com.supplychain.core.Blockchain;
-import com.supplychain.core.HashUtils;
-import com.supplychain.core.MerkleTree;
-import com.supplychain.supplychain.SupplyChainBlockchain;
+import com.supplychain.crypto.HashFunction;
+import com.supplychain.crypto.Sha256Hasher;
+import com.supplychain.crypto.TransactionSerializer;
+import com.supplychain.domain.ledger.Blockchain;
+import com.supplychain.domain.merkle.MerkleProofElement;
+import com.supplychain.domain.merkle.MerkleTree;
+import com.supplychain.domain.model.Transaction;
 
-import java.sql.*;
-import java.time.Instant;
-import java.util.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Phase 5: Academic Comparison - Blockchain vs Traditional Database
- * ====================================================================
- * This class provides a comprehensive comparison between the blockchain-based
- * supply chain system and a traditional centralized SQL database.
+ * Benchmark Layer — Blockchain vs Traditional Database
+ * =====================================================
+ *
+ * Academic comparison between the blockchain-based supply chain system
+ * and a traditional centralized SQL database.
  *
  * METRICS ANALYZED:
- * 1. Performance: Transaction throughput and latency
- * 2. Storage: Space efficiency and growth rate
- * 3. Security: Tamper resistance and data integrity
- * 4. Trust Model: Centralization vs decentralization
- * 5. Complexity: Implementation and maintenance effort
+ * 1. Performance: transaction throughput and latency
+ * 2. Storage: space efficiency and growth rate
+ * 3. Security: tamper resistance and data integrity
+ * 4. Trust model: centralization vs decentralization
+ * 5. Complexity: implementation and maintenance effort
+ *
+ * If the SQLite JDBC driver is not on the classpath, the benchmark
+ * degrades gracefully to a blockchain-only demonstration instead of
+ * crashing.
  */
 public class DatabaseBenchmark {
 
-    private Blockchain blockchain;
-    private Connection sqlConnection;
-    private Statement sqlStatement;
-    private String dbPath = "supply_chain_benchmark.db";
+    private final HashFunction hasher = new Sha256Hasher();
+    private final Blockchain blockchain;
+    private final Connection sqlConnection;
+    private final Statement sqlStatement;
+    private final String dbPath = "supply_chain_benchmark.db";
 
     /**
-     * Initialize benchmark environment.
+     * Initialize the benchmark environment.
      */
     public DatabaseBenchmark() throws SQLException {
-        blockchain = new Blockchain();
-        setupSQLDatabase();
+        this.blockchain = new Blockchain(hasher);
+        this.sqlConnection = setupSqlDatabase();
+        this.sqlStatement = sqlConnection == null ? null : sqlConnection.createStatement();
     }
 
     /**
-     * Create SQL schema for comparison.
+     * Create the SQL schema used for the comparison baseline.
+     *
+     * @return an open connection, or null when SQLite is unavailable
      */
-    private void setupSQLDatabase() throws SQLException {
+    private Connection setupSqlDatabase() {
         try {
-            // Load SQLite JDBC driver
             Class.forName("org.sqlite.JDBC");
         } catch (ClassNotFoundException e) {
             System.out.println("SQLite JDBC not found. Using in-memory simulation.");
-            return;
+            return null;
         }
 
-        sqlConnection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
-        sqlStatement = sqlConnection.createStatement();
+        Connection connection;
+        try {
+            connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+        } catch (SQLException e) {
+            System.out.println("Could not open SQLite database (" + e.getMessage() + "). Skipping SQL tests.");
+            return null;
+        }
 
-        // Create transaction table
-        sqlStatement.execute("    CREATE TABLE IF NOT EXISTS transactions (\n"
-                + "        id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
-                + "        product_id TEXT NOT NULL,\n"
-                + "        sender TEXT NOT NULL,\n"
-                + "        receiver TEXT NOT NULL,\n"
-                + "        location TEXT NOT NULL,\n"
-                + "        timestamp TEXT NOT NULL,\n"
-                + "        block_number INTEGER,\n"
-                + "        metadata TEXT\n"
-                + "    )\n");
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("    CREATE TABLE IF NOT EXISTS transactions (\n"
+                    + "        id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+                    + "        product_id TEXT NOT NULL,\n"
+                    + "        sender TEXT NOT NULL,\n"
+                    + "        receiver TEXT NOT NULL,\n"
+                    + "        location TEXT NOT NULL,\n"
+                    + "        timestamp TEXT NOT NULL,\n"
+                    + "        block_number INTEGER,\n"
+                    + "        metadata TEXT\n"
+                    + "    )\n");
+            statement.execute("CREATE INDEX IF NOT EXISTS idx_product_id ON transactions(product_id)");
+            statement.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON transactions(timestamp)");
+        } catch (SQLException e) {
+            System.out.println("Could not prepare SQLite schema (" + e.getMessage() + "). Skipping SQL tests.");
+            try {
+                connection.close();
+            } catch (SQLException ignored) {
+                // Ignore cleanup errors
+            }
+            return null;
+        }
 
-        // Create indexes for faster queries
-        sqlStatement.execute("CREATE INDEX IF NOT EXISTS idx_product_id ON transactions(product_id)");
-        sqlStatement.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON transactions(timestamp)");
+        return connection;
     }
 
     /**
-     * Insert a single transaction into SQL database.
+     * Insert a single transaction into the SQL database.
      */
-    private void insertSQLTransaction(Map<String, Object> transaction, int blockNumber) throws SQLException {
+    private void insertSqlTransaction(Transaction transaction, int blockNumber) throws SQLException {
         String sql = "INSERT INTO transactions (product_id, sender, receiver, location, timestamp, block_number, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement pstmt = sqlConnection.prepareStatement(sql)) {
-            pstmt.setString(1, (String) transaction.get("product_id"));
-            pstmt.setString(2, (String) transaction.get("sender"));
-            pstmt.setString(3, (String) transaction.get("receiver"));
-            pstmt.setString(4, (String) transaction.get("location"));
-            pstmt.setString(5, (String) transaction.get("timestamp"));
+            pstmt.setString(1, transaction.getProductId());
+            pstmt.setString(2, transaction.getSender());
+            pstmt.setString(3, transaction.getReceiver());
+            pstmt.setString(4, transaction.getLocation());
+            pstmt.setString(5, transaction.getTimestamp());
             pstmt.setInt(6, blockNumber);
-            pstmt.setString(7, transaction.get("metadata").toString());
+            pstmt.setString(7, transaction.getMetadata().toString());
             pstmt.executeUpdate();
         }
     }
 
     /**
-     * Query product history from SQL database.
+     * Query product history from the SQL database.
      */
-    private List<Map<String, Object>> queryProductHistorySQL(String productId) throws SQLException {
+    private List<Map<String, Object>> queryProductHistorySql(String productId) throws SQLException {
         List<Map<String, Object>> results = new ArrayList<>();
         String sql = "SELECT product_id, sender, receiver, location, timestamp, block_number FROM transactions WHERE product_id = ? ORDER BY timestamp ASC";
 
@@ -113,7 +146,18 @@ public class DatabaseBenchmark {
     }
 
     /**
-     * Run comprehensive benchmark comparing blockchain and SQL.
+     * @return true when the SQL baseline is usable
+     */
+    private boolean sqlAvailable() {
+        return sqlConnection != null;
+    }
+
+    /**
+     * Run the comprehensive benchmark comparing blockchain and SQL.
+     *
+     * @param numTransactions number of transactions to insert
+     * @param numProducts     number of distinct products
+     * @return raw benchmark metrics
      */
     public Map<String, Object> runBenchmark(int numTransactions, int numProducts) throws SQLException {
         System.out.println("\n======================================================================");
@@ -122,7 +166,10 @@ public class DatabaseBenchmark {
         System.out.println("Test Parameters: " + numTransactions + " transactions, " + numProducts + " products\n");
 
         Map<String, Object> results = new LinkedHashMap<>();
-        results.put("parameters", createMap("num_transactions", numTransactions, "num_products", numProducts));
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        parameters.put("num_transactions", numTransactions);
+        parameters.put("num_products", numProducts);
+        results.put("parameters", parameters);
 
         // =========================================================================
         // 1. INSERTION PERFORMANCE
@@ -130,17 +177,9 @@ public class DatabaseBenchmark {
         System.out.println("TEST 1: Transaction Insertion Performance");
         System.out.println("----------------------------------------------------------------------");
 
-        // Blockchain insertion
         long blockchainStartTime = System.nanoTime();
         for (int i = 0; i < numTransactions; i++) {
-            String productId = String.format("PROD-%04d", i % numProducts);
-            Map<String, Object> tx = HashUtils.createTransaction(
-                    productId,
-                    String.format("Entity-%d", i % 10),
-                    String.format("Entity-%d", (i + 1) % 10),
-                    String.format("Location-%d", i % 20),
-                    createMap("batch", i / 10)
-            );
+            Transaction tx = createBenchmarkTransaction(i, numProducts);
             blockchain.addBlock(Collections.singletonList(tx));
         }
         long blockchainEndTime = System.nanoTime();
@@ -151,35 +190,36 @@ public class DatabaseBenchmark {
         results.put("blockchain_avg_insert_time_ms", blockchainAvgMs);
 
         System.out.println("Blockchain:");
-        System.out.printf("  Total time: %.2f ms\n", blockchainTotalMs);
-        System.out.printf("  Average per transaction: %.4f ms\n", blockchainAvgMs);
+        System.out.printf("  Total time: %.2f ms%n", blockchainTotalMs);
+        System.out.printf("  Average per transaction: %.4f ms%n", blockchainAvgMs);
 
-        // SQL insertion
-        long sqlStartTime = System.nanoTime();
-        for (int i = 0; i < numTransactions; i++) {
-            String productId = String.format("PROD-%04d", i % numProducts);
-            Map<String, Object> tx = HashUtils.createTransaction(
-                    productId,
-                    String.format("Entity-%d", i % 10),
-                    String.format("Entity-%d", (i + 1) % 10),
-                    String.format("Location-%d", i % 20),
-                    createMap("batch", i / 10)
-            );
-            insertSQLTransaction(tx, i / 10);
+        Double sqlTotalMs = null;
+        if (sqlAvailable()) {
+            long sqlStartTime = System.nanoTime();
+            for (int i = 0; i < numTransactions; i++) {
+                Transaction tx = createBenchmarkTransaction(i, numProducts);
+                insertSqlTransaction(tx, i / 10);
+            }
+            long sqlEndTime = System.nanoTime();
+            sqlTotalMs = (sqlEndTime - sqlStartTime) / 1_000_000.0;
+
+            results.put("sql_total_insert_time_ms", sqlTotalMs);
+            results.put("sql_avg_insert_time_ms", sqlTotalMs / numTransactions);
+
+            System.out.println("SQL Database:");
+            System.out.printf("  Total time: %.2f ms%n", sqlTotalMs);
+            System.out.printf("  Average per transaction: %.4f ms%n", sqlTotalMs / numTransactions);
+        } else {
+            System.out.println("SQL Database: SKIPPED (SQLite JDBC not available)");
         }
-        long sqlEndTime = System.nanoTime();
-        double sqlTotalMs = (sqlEndTime - sqlStartTime) / 1_000_000.0;
-        double sqlAvgMs = sqlTotalMs / numTransactions;
 
-        results.put("sql_total_insert_time_ms", sqlTotalMs);
-        results.put("sql_avg_insert_time_ms", sqlAvgMs);
-
-        System.out.println("SQL Database:");
-        System.out.printf("  Total time: %.2f ms\n", sqlTotalMs);
-        System.out.printf("  Average per transaction: %.4f ms\n", sqlAvgMs);
-
-        double insertionSpeedup = sqlTotalMs / blockchainTotalMs;
-        System.out.printf("\n  SQL is %.2fx %s for insertions\n\n", insertionSpeedup, insertionSpeedup > 1 ? "FASTER" : "SLOWER");
+        Double insertionSpeedup = null;
+        if (sqlTotalMs != null) {
+            insertionSpeedup = sqlTotalMs / blockchainTotalMs;
+            System.out.printf("%n  SQL is %.2fx %s for insertions%n%n", insertionSpeedup, insertionSpeedup > 1 ? "FASTER" : "SLOWER");
+        } else {
+            System.out.println();
+        }
 
         // =========================================================================
         // 2. QUERY PERFORMANCE
@@ -189,7 +229,6 @@ public class DatabaseBenchmark {
 
         String testProduct = "PROD-0001";
 
-        // Blockchain query
         long[] blockchainQueryTimes = new long[100];
         for (int i = 0; i < 100; i++) {
             long start = System.nanoTime();
@@ -200,23 +239,32 @@ public class DatabaseBenchmark {
         double blockchainQueryAvg = average(blockchainQueryTimes) / 1_000_000.0;
         results.put("blockchain_query_time_ms", blockchainQueryAvg);
 
-        System.out.printf("Blockchain: %.4f ms average\n", blockchainQueryAvg);
+        System.out.printf("Blockchain: %.4f ms average%n", blockchainQueryAvg);
 
-        // SQL query
-        long[] sqlQueryTimes = new long[100];
-        for (int i = 0; i < 100; i++) {
-            long start = System.nanoTime();
-            queryProductHistorySQL(testProduct);
-            long end = System.nanoTime();
-            sqlQueryTimes[i] = end - start;
+        Double sqlQueryAvg = null;
+        if (sqlAvailable()) {
+            long[] sqlQueryTimes = new long[100];
+            for (int i = 0; i < 100; i++) {
+                long start = System.nanoTime();
+                queryProductHistorySql(testProduct);
+                long end = System.nanoTime();
+                sqlQueryTimes[i] = end - start;
+            }
+            sqlQueryAvg = average(sqlQueryTimes) / 1_000_000.0;
+            results.put("sql_query_time_ms", sqlQueryAvg);
+
+            System.out.printf("SQL Database: %.4f ms average%n", sqlQueryAvg);
+        } else {
+            System.out.println("SQL Database: SKIPPED (SQLite JDBC not available)");
         }
-        double sqlQueryAvg = average(sqlQueryTimes) / 1_000_000.0;
-        results.put("sql_query_time_ms", sqlQueryAvg);
 
-        System.out.printf("SQL Database: %.4f ms average\n", sqlQueryAvg);
-
-        double querySpeedup = blockchainQueryAvg / sqlQueryAvg;
-        System.out.printf("\n  SQL is %.2fx %s for queries\n\n", querySpeedup, querySpeedup > 1 ? "FASTER" : "SLOWER");
+        Double querySpeedup = null;
+        if (sqlQueryAvg != null) {
+            querySpeedup = blockchainQueryAvg / sqlQueryAvg;
+            System.out.printf("%n  SQL is %.2fx %s for queries%n%n", querySpeedup, querySpeedup > 1 ? "FASTER" : "SLOWER");
+        } else {
+            System.out.println();
+        }
 
         // =========================================================================
         // 3. STORAGE EFFICIENCY
@@ -224,25 +272,23 @@ public class DatabaseBenchmark {
         System.out.println("TEST 3: Storage Efficiency");
         System.out.println("----------------------------------------------------------------------");
 
-        // Blockchain storage (simplified)
-        long blockchainStorage = blockchain.getChainLength() * 500;  // Approximate bytes per block
+        long blockchainStorage = blockchain.getChainLength() * 500L;  // Approximate bytes per block
         results.put("blockchain_storage_bytes", blockchainStorage);
         results.put("blockchain_total_blocks", blockchain.getChainLength());
 
         System.out.println("Blockchain Storage:");
         System.out.println("  Blocks: " + blockchain.getChainLength());
-        System.out.printf("  Size: %.2f KB\n", blockchainStorage / 1024.0);
+        System.out.printf("  Size: %.2f KB%n", blockchainStorage / 1024.0);
 
-        // SQL storage
-        long sqlStorage = numTransactions * 200;  // Approximate bytes per row
+        long sqlStorage = numTransactions * 200L;  // Approximate bytes per row
         results.put("sql_storage_bytes", sqlStorage);
 
         System.out.println("SQL Database Storage:");
         System.out.println("  Transactions: " + numTransactions);
-        System.out.printf("  Size: %.2f KB\n", sqlStorage / 1024.0);
+        System.out.printf("  Size: %.2f KB%n", sqlStorage / 1024.0);
 
         double storageRatio = (double) blockchainStorage / sqlStorage;
-        System.out.printf("\n  Blockchain uses %.2fx %s storage\n\n", storageRatio, storageRatio > 1 ? "MORE" : "LESS");
+        System.out.printf("%n  Blockchain uses %.2fx %s storage%n%n", storageRatio, storageRatio > 1 ? "MORE" : "LESS");
 
         // =========================================================================
         // 4. VERIFICATION PERFORMANCE
@@ -250,10 +296,9 @@ public class DatabaseBenchmark {
         System.out.println("TEST 4: Verification Operation Performance");
         System.out.println("----------------------------------------------------------------------");
 
-        // Blockchain verification
         long[] blockchainVerifyTimes = new long[100];
         for (int i = 0; i < 100; i++) {
-            Map<String, Object> testTx = HashUtils.createTransaction(
+            Transaction testTx = Transaction.create(
                     String.format("PROD-%04d", i),
                     "Test",
                     "Verify",
@@ -261,34 +306,37 @@ public class DatabaseBenchmark {
                     null
             );
             long start = System.nanoTime();
-            String txHash = HashUtils.hashTransaction(testTx);
-            MerkleTree merkle = new MerkleTree(Collections.singletonList(txHash));
-            String root = merkle.getMerkleRoot();
+            String txHash = TransactionSerializer.hashOf(testTx, hasher);
+            MerkleTree merkle = new MerkleTree(Collections.singletonList(txHash), hasher);
+            merkle.getMerkleRoot();
             long end = System.nanoTime();
             blockchainVerifyTimes[i] = end - start;
         }
         double blockchainVerifyAvg = average(blockchainVerifyTimes) / 1_000_000.0;
         results.put("blockchain_verification_time_ms", blockchainVerifyAvg);
 
-        System.out.printf("Blockchain (hash + merkle): %.4f ms\n", blockchainVerifyAvg);
+        System.out.printf("Blockchain (hash + merkle): %.4f ms%n", blockchainVerifyAvg);
 
-        // SQL verification
-        long[] sqlVerifyTimes = new long[100];
-        for (int i = 0; i < 100; i++) {
-            long start = System.nanoTime();
-            String sql = "SELECT COUNT(*) FROM transactions WHERE product_id = ?";
-            try (PreparedStatement pstmt = sqlConnection.prepareStatement(sql)) {
-                pstmt.setString(1, "PROD-0001");
-                ResultSet rs = pstmt.executeQuery();
-                rs.next();
+        if (sqlAvailable()) {
+            long[] sqlVerifyTimes = new long[100];
+            for (int i = 0; i < 100; i++) {
+                long start = System.nanoTime();
+                String sql = "SELECT COUNT(*) FROM transactions WHERE product_id = ?";
+                try (PreparedStatement pstmt = sqlConnection.prepareStatement(sql)) {
+                    pstmt.setString(1, "PROD-0001");
+                    ResultSet rs = pstmt.executeQuery();
+                    rs.next();
+                }
+                long end = System.nanoTime();
+                sqlVerifyTimes[i] = end - start;
             }
-            long end = System.nanoTime();
-            sqlVerifyTimes[i] = end - start;
-        }
-        double sqlVerifyAvg = average(sqlVerifyTimes) / 1_000_000.0;
-        results.put("sql_verification_time_ms", sqlVerifyAvg);
+            double sqlVerifyAvg = average(sqlVerifyTimes) / 1_000_000.0;
+            results.put("sql_verification_time_ms", sqlVerifyAvg);
 
-        System.out.printf("SQL Database (lookup): %.4f ms\n\n", sqlVerifyAvg);
+            System.out.printf("SQL Database (lookup): %.4f ms%n%n", sqlVerifyAvg);
+        } else {
+            System.out.println("SQL Database (lookup): SKIPPED (SQLite JDBC not available)\n");
+        }
 
         // =========================================================================
         // 5. INTEGRITY VERIFICATION
@@ -303,31 +351,45 @@ public class DatabaseBenchmark {
         results.put("blockchain_integrity_check_time_ms", integrityTime);
         results.put("blockchain_integrity_valid", isValid);
 
-        System.out.printf("Blockchain: %.2f ms (Valid: %s)\n", integrityTime, isValid);
+        System.out.printf("Blockchain: %.2f ms (Valid: %s)%n", (double) integrityTime, isValid);
         System.out.println("  Complexity: O(n) - must verify all blocks");
         System.out.println("  Checks: Block hashes, Merkle roots, Chain links\n");
 
         // =========================================================================
         // SUMMARY
         // =========================================================================
-        printSummary(insertionSpeedup, querySpeedup, storageRatio);
+        if (insertionSpeedup != null && querySpeedup != null) {
+            printSummary(insertionSpeedup, querySpeedup, storageRatio);
+        } else {
+            System.out.println("======================================================================");
+            System.out.println("BENCHMARK SUMMARY (blockchain-only run)");
+            System.out.println("======================================================================");
+            System.out.println("SQL comparison skipped - add the SQLite JDBC driver to the");
+            System.out.println("classpath to run the full academic comparison.");
+            System.out.println("======================================================================\n");
+        }
 
         return results;
     }
 
     /**
-     * Create a simple map.
+     * Create a synthetic transaction for the benchmark loops.
      */
-    private Map<String, Object> createMap(Object... keyValues) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        for (int i = 0; i < keyValues.length; i += 2) {
-            map.put((String) keyValues[i], keyValues[i + 1]);
-        }
-        return map;
+    private Transaction createBenchmarkTransaction(int i, int numProducts) {
+        String productId = String.format("PROD-%04d", i % numProducts);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("batch", i / 10);
+        return Transaction.create(
+                productId,
+                String.format("Entity-%d", i % 10),
+                String.format("Entity-%d", (i + 1) % 10),
+                String.format("Location-%d", i % 20),
+                metadata
+        );
     }
 
     /**
-     * Calculate average of long array.
+     * Arithmetic mean of a long array.
      */
     private double average(long[] values) {
         long sum = 0;
@@ -338,7 +400,7 @@ public class DatabaseBenchmark {
     }
 
     /**
-     * Print benchmark summary.
+     * Print the benchmark summary and trade-off analysis.
      */
     private void printSummary(double insertionSpeedup, double querySpeedup, double storageRatio) {
         System.out.println("======================================================================");
@@ -346,9 +408,9 @@ public class DatabaseBenchmark {
         System.out.println("======================================================================");
 
         System.out.println("Performance Comparison:");
-        System.out.printf("  Insertions: SQL is %.2fx faster\n", insertionSpeedup);
-        System.out.printf("  Queries: SQL is %.2fx faster\n", querySpeedup);
-        System.out.printf("  Storage: Blockchain uses %.2fx more space\n", storageRatio);
+        System.out.printf("  Insertions: SQL is %.2fx faster%n", insertionSpeedup);
+        System.out.printf("  Queries: SQL is %.2fx faster%n", querySpeedup);
+        System.out.printf("  Storage: Blockchain uses %.2fx more space%n", storageRatio);
         System.out.println();
 
         System.out.println("Trade-off Analysis:");
@@ -387,8 +449,12 @@ public class DatabaseBenchmark {
      */
     public void cleanup() {
         try {
-            if (sqlStatement != null) sqlStatement.close();
-            if (sqlConnection != null) sqlConnection.close();
+            if (sqlStatement != null) {
+                sqlStatement.close();
+            }
+            if (sqlConnection != null) {
+                sqlConnection.close();
+            }
             java.nio.file.Files.deleteIfExists(java.nio.file.Paths.get(dbPath));
         } catch (Exception e) {
             // Ignore cleanup errors
@@ -396,7 +462,7 @@ public class DatabaseBenchmark {
     }
 
     /**
-     * Run full comparison with analysis.
+     * Run the full comparison with the academic analysis.
      */
     public static void runFullComparison() {
         System.out.println("\n" + "======================================================================");
@@ -427,7 +493,7 @@ public class DatabaseBenchmark {
             DatabaseBenchmark benchmark = new DatabaseBenchmark();
 
             System.out.println("\nRunning benchmark with 1,000 transactions...");
-            Map<String, Object> results = benchmark.runBenchmark(1000, 100);
+            benchmark.runBenchmark(1000, 100);
 
             benchmark.cleanup();
 
@@ -443,7 +509,7 @@ public class DatabaseBenchmark {
     }
 
     /**
-     * Run blockchain-only benchmark when SQLite is not available.
+     * Run the blockchain-only benchmark when SQLite is not available.
      */
     private static void runBlockchainBenchmark() {
         System.out.println("======================================================================");
@@ -456,7 +522,7 @@ public class DatabaseBenchmark {
         // Measure insertion time
         long startTime = System.nanoTime();
         for (int i = 0; i < numTransactions; i++) {
-            Map<String, Object> tx = HashUtils.createTransaction(
+            Transaction tx = Transaction.create(
                     String.format("PROD-%04d", i),
                     String.format("Sender-%d", i),
                     String.format("Receiver-%d", i),
@@ -469,10 +535,10 @@ public class DatabaseBenchmark {
         double totalTimeMs = (endTime - startTime) / 1_000_000.0;
 
         System.out.println("Blockchain Performance with " + numTransactions + " transactions:");
-        System.out.printf("  Total time: %.2f ms\n", totalTimeMs);
-        System.out.printf("  Average per transaction: %.4f ms\n", totalTimeMs / numTransactions);
-        System.out.printf("  Blocks created: %d\n", blockchain.getChainLength());
-        System.out.printf("  Chain valid: %s\n", blockchain.isValid());
+        System.out.printf("  Total time: %.2f ms%n", totalTimeMs);
+        System.out.printf("  Average per transaction: %.4f ms%n", totalTimeMs / numTransactions);
+        System.out.printf("  Blocks created: %d%n", blockchain.getChainLength());
+        System.out.printf("  Chain valid: %s%n", blockchain.isValid());
         System.out.println();
 
         // Measure verification
@@ -484,7 +550,7 @@ public class DatabaseBenchmark {
         double verifyTimeMs = (endTime - startTime) / 1_000_000.0 / 100;
 
         System.out.println("Query Performance:");
-        System.out.printf("  Average query time: %.4f ms\n", verifyTimeMs);
+        System.out.printf("  Average query time: %.4f ms%n", verifyTimeMs);
         System.out.println();
 
         // Measure Merkle proof
@@ -495,19 +561,19 @@ public class DatabaseBenchmark {
         MerkleTree tree = new MerkleTree(hashes);
 
         startTime = System.nanoTime();
-        List<MerkleTree.ProofElement> proof = tree.generateProof("hash0500");
+        List<MerkleProofElement> proof = tree.generateProof("hash0500");
         endTime = System.nanoTime();
         double proofTimeMs = (endTime - startTime) / 1_000_000.0;
 
         System.out.println("Merkle Tree Verification:");
-        System.out.printf("  Proof generation time: %.4f ms\n", proofTimeMs);
-        System.out.printf("  Proof size: %d elements (O(log n) = O(%.0f))\n", proof.size(), Math.ceil(Math.log(1000) / Math.log(2)));
-        System.out.printf("  Merkle root: %s...\n", tree.getMerkleRoot().substring(0, 32));
+        System.out.printf("  Proof generation time: %.4f ms%n", proofTimeMs);
+        System.out.printf("  Proof size: %d elements (O(log n) = O(%.0f))%n", proof.size(), Math.ceil(Math.log(1000) / Math.log(2)));
+        System.out.printf("  Merkle root: %s...%n", tree.getMerkleRoot().substring(0, 32));
         System.out.println();
     }
 
     /**
-     * Print academic analysis.
+     * Print the academic analysis.
      */
     private static void printAnalysis() {
         System.out.println("                ANALYSIS: WHEN TO USE BLOCKCHAIN FOR SUPPLY CHAIN\n"

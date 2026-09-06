@@ -16,7 +16,7 @@ Get up and running with your blockchain supply chain project in 5 minutes!
 
 ```bash
 cd Blockchain-based-smart-supply-chain-system
-mvn clean compile exec:java -Dexec.mainClass="com.supplychain.Main"
+mvn clean compile exec:java
 ```
 
 Then enter `4` when prompted. This will:
@@ -37,21 +37,21 @@ Or simply use the build script:
 mvn clean compile
 ```
 
-**Run all unit tests (Phases 1-3)**
+**Run all unit tests (Phases 1-4)**
 ```bash
-mvn exec:java -Dexec.mainClass="com.supplychain.Main"
+mvn exec:java
 # Select option 1
 ```
 
 **Demo the complete supply chain system (Phase 4)**
 ```bash
-mvn exec:java -Dexec.mainClass="com.supplychain.Main"
+mvn exec:java
 # Select option 2
 ```
 
 **Run the SQL vs Blockchain benchmark (Phase 5)**
 ```bash
-mvn exec:java -Dexec.mainClass="com.supplychain.Main"
+mvn exec:java
 # Select option 3
 ```
 
@@ -59,7 +59,7 @@ mvn exec:java -Dexec.mainClass="com.supplychain.Main"
 
 ```bash
 # Compile all Java files
-javac -d bin src/main/java/com/supplychain/**/*.java
+javac -d bin $(find src/main/java -name "*.java")
 
 # Run the main class
 java -cp bin com.supplychain.Main
@@ -183,56 +183,65 @@ After running this system, you should understand:
 
 ## 📝 Code Structure
 
+The project follows a layered architecture (`app → domain → crypto`):
+
 ```
 src/main/java/com/supplychain/
-├── core/
-│   ├── HashUtils.java        # SHA-256 implementation
-│   ├── MerkleTree.java       # Merkle Tree with proofs
-│   └── Blockchain.java       # Blockchain ledger
-├── supplychain/
-│   └── SupplyChainBlockchain.java  # Supply chain operations
-├── benchmarking/
-│   └── DatabaseBenchmark.java      # SQL vs blockchain analysis
-└── Main.java                 # Entry point with menu
+├── Main.java                     # Thin entry point
+├── app/                          # Console application & demos
+│   ├── SupplyChainApplication.java
+│   └── demo/SupplyChainDemo.java
+├── crypto/                       # Hashing primitives
+│   ├── HashFunction.java         # Hash abstraction (interface)
+│   ├── Sha256Hasher.java         # SHA-256 implementation
+│   └── TransactionSerializer.java
+├── domain/                       # Business logic (pure, no I/O)
+│   ├── model/                    # Transaction, Block, Product, enums
+│   ├── merkle/                   # Merkle tree + proofs
+│   ├── ledger/Blockchain.java    # Immutable ledger
+│   ├── service/SupplyChainService.java
+│   └── dto/                      # Typed results
+├── benchmark/DatabaseBenchmark.java
+└── selftest/                     # Menu-driven tests (Phases 1-4)
+
+src/test/java/com/supplychain/    # JUnit 5 tests (mvn test)
 ```
 
 ## 🔧 Customization
 
-### Add New Transaction Types
-Edit `src/main/java/com/supplychain/core/HashUtils.java`:
+### Add New Transaction Fields
+Edit `src/main/java/com/supplychain/domain/model/Transaction.java` and
+`src/main/java/com/supplychain/crypto/TransactionSerializer.java`:
+
 ```java
-public static Map<String, Object> createTransaction(
-        String productId, String sender, String receiver,
-        String location, Map<String, Object> metadata) {
-    Map<String, Object> transaction = new LinkedHashMap<>();
-    transaction.put("product_id", productId);
-    transaction.put("sender", sender);
-    transaction.put("receiver", receiver);
-    transaction.put("location", location);
-    transaction.put("timestamp", Instant.now().toString());
-    transaction.put("metadata", metadata != null ? metadata : new LinkedHashMap<>());
-    return transaction;
+public Transaction(String productId, String sender, String receiver,
+                   String location, String timestamp, Map<String, Object> metadata) {
+    // add your field here — the canonical serializer picks it up automatically
 }
 ```
 
 ### Modify Verification Logic
-Edit `src/main/java/com/supplychain/supplychain/SupplyChainBlockchain.java`:
+Edit `src/main/java/com/supplychain/domain/service/SupplyChainService.java`:
 ```java
-public boolean verifyProduct(String productId) {
+public VerificationResult verifyProduct(String productId) {
     // Add custom verification rules here
-    return verifyProductInternal(productId);
 }
 ```
 
 ### Change Hash Algorithm
-Edit `src/main/java/com/supplychain/core/HashUtils.java`:
+Implement the `HashFunction` interface — no domain code changes needed:
 ```java
-public static String calculateSHA256(String data) {
-    // Replace with SHA-512, SHA3-256, etc.
-    MessageDigest digest = MessageDigest.getInstance("SHA-256");
-    byte[] hash = digest.digest(data.getBytes(StandardCharsets.UTF_8));
-    return bytesToHex(hash);
+public class Sha3Hasher implements HashFunction {
+    @Override
+    public String hash(String data) {
+        MessageDigest digest = MessageDigest.getInstance("SHA3-256");
+        return bytesToHex(digest.digest(data.getBytes(StandardCharsets.UTF_8)));
+    }
 }
+
+// Then wire it at the composition root (SupplyChainApplication):
+HashFunction hasher = new Sha3Hasher();
+Blockchain ledger = new Blockchain(hasher);
 ```
 
 ## 🎯 Next Steps
@@ -269,13 +278,13 @@ The `build.sh` script can install Maven for you:
 ```
 
 **Slow Benchmark?**
-Reduce the transaction count in `src/main/java/com/supplychain/benchmarking/DatabaseBenchmark.java`:
+Reduce the transaction count in `src/main/java/com/supplychain/benchmark/DatabaseBenchmark.java`:
 ```java
-runBenchmark(1000, 100);  // transactions, products
+benchmark.runBenchmark(1000, 100);  // transactions, products
 ```
 
 **Need Help?**
-Each class includes:
+Each package includes a `package-info.java` explaining its responsibility, and each class has:
 - Detailed Javadoc comments
 - Usage examples
 - Complexity analysis

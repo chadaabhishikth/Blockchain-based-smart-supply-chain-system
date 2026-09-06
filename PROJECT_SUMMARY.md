@@ -6,10 +6,10 @@ Successfully built a complete, working blockchain-based supply chain system in J
 
 ## 📊 By the Numbers
 
-- **Lines of Code**: ~2,650 lines of production-quality Java
-- **Classes**: 6 core classes + 1 main entry point
-- **Unit Tests**: Comprehensive test suites per phase
-- **Documentation**: Detailed guides (README, Quick Start, this summary)
+- **Lines of Code**: ~3,900 lines of production-quality Java
+- **Classes**: 36 types across 4 cleanly separated layers
+- **Unit Tests**: Menu-driven self tests (Phases 1-4) + JUnit 5 suite for CI
+- **Documentation**: Detailed guides (README, Quick Start, this summary) + package-info per layer
 - **Performance Benchmarks**: Complete SQL vs Blockchain comparison
 
 ## 🏗️ Architecture Overview
@@ -63,16 +63,20 @@ Successfully built a complete, working blockchain-based supply chain system in J
 
 | Requirement | Implementation | Status |
 |-------------|----------------|--------|
-| SHA-256 Hashing | `HashUtils.java` | ✅ Complete |
-| Merkle Trees | `MerkleTree.java` | ✅ Complete |
-| Blockchain | `Blockchain.java` | ✅ Complete |
+| SHA-256 Hashing | `crypto/Sha256Hasher.java` | ✅ Complete |
+| Merkle Trees | `domain/merkle/MerkleTree.java` | ✅ Complete |
+| Blockchain | `domain/ledger/Blockchain.java` | ✅ Complete |
 | O(log n) Verification | Proof generation | ✅ Complete |
 | Tamper Detection | Chain validation | ✅ Complete |
-| Product Tracking | Supply chain logic | ✅ Complete |
+| Product Tracking | `domain/service/SupplyChainService.java` | ✅ Complete |
 | Counterfeit Detection | Verification system | ✅ Complete |
 | Batch Verification | Merkle proofs | ✅ Complete |
 | Ownership Transfer | Transaction system | ✅ Complete |
-| SQL Comparison | Benchmark suite | ✅ Complete |
+| SQL Comparison | `benchmark/DatabaseBenchmark.java` | ✅ Complete |
+| Layered Architecture | app / domain / crypto packages | ✅ Complete |
+| Typed Domain Model | `domain/model` + `domain/dto` | ✅ Complete |
+| Dependency Injection | `HashFunction` interface wiring | ✅ Complete |
+| JUnit 5 CI Tests | `src/test/java` | ✅ Complete |
 
 ### Features Implemented
 
@@ -139,7 +143,7 @@ Successfully built a complete, working blockchain-based supply chain system in J
 ## 🔑 Key Innovations
 
 ### 1. Educational Focus
-Every line of code includes:
+Every package and class includes:
 - Detailed Javadoc comments
 - Static typing with generics
 - Complexity analysis
@@ -205,27 +209,37 @@ Blockchain-based-smart-supply-chain-system/
 ├── pom.xml                   # Maven configuration
 ├── build.sh                  # Build & run helper script
 └── src/
-    └── main/
-        └── java/
-            └── com/supplychain/
-                ├── Main.java                       # Entry point (menu system)
-                ├── core/
-                │   ├── HashUtils.java              # SHA-256 (~300 lines)
-                │   ├── MerkleTree.java             # Merkle Tree (~400 lines)
-                │   └── Blockchain.java             # Blockchain (~550 lines)
-                ├── supplychain/
-                │   └── SupplyChainBlockchain.java  # Supply chain (~630 lines)
-                └── benchmarking/
-                    └── DatabaseBenchmark.java      # SQL comparison (~590 lines)
+    ├── main/java/com/supplychain/
+    │   ├── Main.java                          # Thin entry point
+    │   ├── app/                               # ── Application layer
+    │   │   ├── SupplyChainApplication.java    # Composition root + menu
+    │   │   └── demo/SupplyChainDemo.java      # Lifecycle demo
+    │   ├── crypto/                            # ── Crypto layer
+    │   │   ├── HashFunction.java              # Hash abstraction
+    │   │   ├── Sha256Hasher.java              # SHA-256
+    │   │   └── TransactionSerializer.java     # Canonical serialization
+    │   ├── domain/                            # ── Domain layer
+    │   │   ├── model/                         # Transaction, Block, Product...
+    │   │   ├── merkle/                        # Merkle tree + proofs
+    │   │   ├── ledger/Blockchain.java         # Immutable ledger
+    │   │   ├── service/SupplyChainService.java
+    │   │   └── dto/                           # Typed results
+    │   ├── benchmark/DatabaseBenchmark.java   # ── Benchmark layer
+    │   └── selftest/                          # ── Menu-driven tests
+    └── test/java/com/supplychain/             # ── JUnit 5 tests (CI)
+        ├── crypto/Sha256HasherTest.java
+        ├── domain/merkle/MerkleTreeTest.java
+        ├── domain/ledger/BlockchainTest.java
+        └── domain/service/SupplyChainServiceTest.java
 ```
 
 ## 🔧 Technology Stack
 
 - **Language**: Java 11+
 - **Build Tool**: Maven 3.6+
-- **Hashing**: `java.security.MessageDigest` (JDK built-in)
+- **Hashing**: `java.security.MessageDigest` (JDK built-in), behind the `HashFunction` interface
 - **Database**: SQLite via JDBC driver (only external dependency)
-- **Testing**: JUnit 5 (optional) + built-in test suites
+- **Testing**: JUnit 5 (Maven Surefire) + menu-driven self tests
 
 ## 💡 Use Cases Covered
 
@@ -325,11 +339,12 @@ Potential additions for production systems:
 
 ## 🏆 Project Highlights
 
-1. **Pure Java Implementation** - Single language, enterprise-grade tooling
-2. **Educational Focus** - Every concept explained
-3. **Complete System** - From hashing to business logic
-4. **Performance Analysis** - Real benchmarks included
-5. **Production Quality** - Professional code standards
+1. **Clean Layered Architecture** - app / domain / crypto with one-way dependencies
+2. **Typed Domain Model** - Immutable Transaction, Block and Product objects with DTO results
+3. **Educational Focus** - Every concept explained in Javadoc and package-info files
+4. **Complete System** - From hashing to business logic to benchmarks
+5. **Dual Testing** - Interactive menu self tests plus JUnit 5 for CI
+6. **Production Quality** - Dependency injection, encapsulation, professional code standards
 
 ## ✅ Deliverables Checklist
 
