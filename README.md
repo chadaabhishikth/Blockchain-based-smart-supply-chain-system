@@ -2,124 +2,211 @@
 
 ## 📋 Project Overview
 
-A comprehensive implementation of blockchain technology for supply chain provenance tracking, counterfeit detection, and product authentication using cryptographic hashing and Merkle Trees.
-
-## 🎯 Core Objectives
-
-### 1. Immutability
-Create an unchangeable history tracker for physical products where every transaction (factory → distributor → retailer → consumer) is cryptographically secured.
-
-### 2. Verification
-Enable consumers to scan a product and verify its complete journey with 100% certainty that the data hasn't been tampered with.
-
-### 3. Efficiency
-Use Merkle Trees to achieve O(log n) verification complexity, enabling lightweight verification even for large supply chains.
+A comprehensive **Java** implementation of blockchain technology for supply chain provenance tracking, counterfeit detection, and product authentication using cryptographic hashing and Merkle Trees — organized in a clean, layered architecture.
 
 ## 🏗️ Architecture
 
+The codebase follows a **layered architecture** with a strict dependency rule:
+dependencies point inwards/downwards only (`app → domain → crypto`), never the
+other way around.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  app          SupplyChainApplication (composition root),        │
+│               SupplyChainDemo — console presentation & wiring   │
+├─────────────────────────────────────────────────────────────────┤
+│  domain       The heart of the system:                          │
+│    ├─ model    Transaction, Block, Product (typed, immutable)   │
+│    ├─ merkle   MerkleTree, MerkleNode, MerkleProofElement       │
+│    ├─ ledger   Blockchain (immutable ledger + integrity check)  │
+│    ├─ service  SupplyChainService (business use cases)          │
+│    └─ dto      Typed results: TransferResult, Verification-    │
+│                Result, Provenance, Batch/Summary reports        │
+├─────────────────────────────────────────────────────────────────┤
+│  crypto       HashFunction (interface), Sha256Hasher,           │
+│               TransactionSerializer (canonical serialization)   │
+├─────────────────────────────────────────────────────────────────┤
+│  benchmark    DatabaseBenchmark — SQL vs blockchain comparison  │
+│  selftest     Menu-driven unit tests (Phases 1-4)               │
+└─────────────────────────────────────────────────────────────────┘
+        src/test/java  →  JUnit 5 tests for CI (Maven Surefire)
+```
+
+### Design principles applied
+
+| Principle | Where you see it |
+|-----------|------------------|
+| **Layered architecture** | `app` / `domain` / `crypto` packages with one-way dependencies |
+| **Type safety** | Typed `Transaction`, `Block`, `Product` and DTOs replace `Map<String, Object>` |
+| **Program to interfaces** | `HashFunction` abstracts SHA-256; inject it anywhere |
+| **Dependency injection** | `Blockchain(HashFunction)`, `SupplyChainService(Blockchain)` |
+| **Immutability** | `Transaction` and `Block` are immutable value objects |
+| **Encapsulation** | Private fields + getters everywhere (no more public mutable fields) |
+| **Separation of concerns** | Domain code never prints; console I/O lives in `app` |
+| **Tests separated** | Menu self-tests in `selftest`, CI tests in `src/test/java` (JUnit 5) |
+| **Self-documenting packages** | Every layer has a `package-info.java` explaining its responsibility |
+
 ### The DSA Components
 
-This project implements two critical data structures from your curriculum:
-
-#### 1. SHA-256 Cryptographic Hashing
+#### 1. SHA-256 Cryptographic Hashing (`crypto/Sha256Hasher.java`)
 - **Purpose**: Create unforgeable digital fingerprints for transactions
 - **Properties**:
   - Deterministic: Same input always produces same output
   - Avalanche effect: Tiny input changes cause massive output changes
   - One-way function: Practically impossible to reverse
-- **Location**: `src/core/hash_utils.py`
+- **Location**: `src/main/java/com/supplychain/crypto/`
 
-#### 2. Merkle Trees (Binary Hash Trees)
+#### 2. Merkle Trees (`domain/merkle/MerkleTree.java`)
 - **Purpose**: Optimize storage and enable O(log n) verification
 - **Structure**:
   - Leaves: Individual transaction hashes
   - Internal nodes: Hash of concatenated child hashes
   - Root: Single hash summarizing all transactions (Merkle Root)
 - **Key Operations**:
-  - `build_tree()`: O(n) construction
-  - `generate_proof()`: O(log n) proof generation
-  - `verify_proof()`: O(log n) verification
-- **Location**: `src/core/merkle_tree.py`
+  - `buildTree()`: O(n) construction
+  - `generateProof()`: O(log n) proof generation
+  - `verifyProof()`: O(log n) verification
+- **Location**: `src/main/java/com/supplychain/domain/merkle/`
 
-#### 3. Blockchain Ledger
+#### 3. Blockchain Ledger (`domain/ledger/Blockchain.java`)
 - **Purpose**: Chain blocks together using cryptographic links
-- **Structure**: Each block contains:
+- **Structure**: Each `Block` (see `domain/model/Block.java`) contains:
   - Block index
   - Timestamp
+  - Transactions (typed `Transaction` objects)
   - Merkle Root of transactions
   - Previous block's hash (creates the chain)
   - Current block's hash
 - **Immutability**: Modifying any block invalidates all subsequent blocks
-- **Location**: `src/core/blockchain.py`
+- **Location**: `src/main/java/com/supplychain/domain/ledger/`
+
+#### 4. Business Logic (`domain/service/SupplyChainService.java`)
+- Manufacturer whitelisting, manufacturing, ownership transfers, consumer
+  sales, product verification and batch verification
+- Returns typed results (`dto` package) instead of raw maps
 
 ## 📁 Project Structure
 
 ```
 Blockchain-based-smart-supply-chain-system/
-├── src/
-│   ├── core/
-│   │   ├── hash_utils.py          # SHA-256 hashing utilities
-│   │   ├── merkle_tree.py         # Merkle Tree implementation
-│   │   ├── blockchain.py          # Blockchain ledger
-│   │   └── __init__.py
-│   ├── supply_chain/
-│   │   ├── business_logic.py      # Supply chain operations
-│   │   └── __init__.py
-│   ├── benchmarking/
-│   │   ├── comparison.py          # SQL vs blockchain analysis
-│   │   └── __init__.py
-│   ├── main.py                    # Main entry point
-│   └── __init__.py
-├── README.md
-└── requirements.txt
+├── pom.xml                                        # Maven configuration
+├── build.sh                                       # Build & run helper script
+├── README.md                                      # This file
+├── QUICKSTART.md                                  # Quick start guide
+├── PROJECT_SUMMARY.md                             # Project summary
+└── src/
+    ├── main/java/com/supplychain/
+    │   ├── Main.java                              # Thin entry point
+    │   ├── app/                                   # ── Application layer
+    │   │   ├── SupplyChainApplication.java        #    Composition root + console menu
+    │   │   └── demo/SupplyChainDemo.java          #    Product lifecycle demo
+    │   ├── crypto/                                # ── Crypto layer
+    │   │   ├── HashFunction.java                  #    Hash abstraction (interface)
+    │   │   ├── Sha256Hasher.java                  #    SHA-256 implementation
+    │   │   └── TransactionSerializer.java         #    Canonical serialization
+    │   ├── domain/                                # ── Domain layer
+    │   │   ├── model/                             #    Typed value objects
+    │   │   │   ├── Transaction.java
+    │   │   │   ├── Block.java
+    │   │   │   ├── Product.java
+    │   │   │   ├── ProductHistoryEntry.java
+    │   │   │   ├── ProductStatus.java
+    │   │   │   └── SupplyChainStage.java
+    │   │   ├── merkle/
+    │   │   │   ├── MerkleTree.java
+    │   │   │   ├── MerkleNode.java
+    │   │   │   ├── MerkleProofElement.java
+    │   │   │   └── MerkleSide.java
+    │   │   ├── ledger/
+    │   │   │   └── Blockchain.java
+    │   │   ├── service/
+    │   │   │   └── SupplyChainService.java
+    │   │   └── dto/                               #    Typed results
+    │   │       ├── TransferResult.java
+    │   │       ├── VerificationResult.java
+    │   │       ├── ManufactureResult.java
+    │   │       ├── Provenance.java
+    │   │       ├── BatchVerificationResult.java
+    │   │       ├── ProductVerification.java
+    │   │       └── SupplyChainSummary.java
+    │   ├── benchmark/                             # ── Benchmark layer
+    │   │   └── DatabaseBenchmark.java
+    │   └── selftest/                              # ── Menu-driven tests
+    │       ├── SelfTestSuite.java
+    │       ├── Check.java
+    │       ├── HashingSelfTest.java
+    │       ├── MerkleSelfTest.java
+    │       ├── LedgerSelfTest.java
+    │       └── SupplyChainSelfTest.java
+    └── test/java/com/supplychain/                 # ── JUnit 5 tests (CI)
+        ├── crypto/Sha256HasherTest.java
+        ├── domain/merkle/MerkleTreeTest.java
+        ├── domain/ledger/BlockchainTest.java
+        └── domain/service/SupplyChainServiceTest.java
 ```
 
 ## 🚀 Quick Start
 
-### Installation
+### Prerequisites
 
-No external dependencies required! Uses Python's built-in libraries:
-- `hashlib` for SHA-256
-- `sqlite3` for benchmarking
-- Standard libraries for all DSA implementations
+- Java 11 or higher
+- Maven 3.6 or higher
+- SQLite JDBC driver (included via Maven)
+
+### Installation & Running
 
 ```bash
-# Run from project root
+# Clone the repository
 cd Blockchain-based-smart-supply-chain-system
+
+# Compile the project
+mvn clean compile
+
+# Run the application (interactive menu)
+mvn exec:java
+
+# Or run tests
+mvn test
+
+# Package as runnable JAR
+mvn package
+java -jar target/blockchain-supply-chain-1.0.0.jar
 ```
 
-### Run All Tests
+### Alternative: Build Script
 
 ```bash
-python3 src/main.py
-# Select option 4 to run everything
+./build.sh compile   # Compile the project
+./build.sh test      # Run tests
+./build.sh run       # Run the application
+./build.sh package   # Package as JAR
+./build.sh all       # Compile + test + package + run
 ```
 
-### Run Individual Phases
+### Alternative: Direct Compilation
 
-**Phase 1: SHA-256 Hashing**
 ```bash
-python3 src/core/hash_utils.py
+# Compile all Java files
+javac -d bin $(find src/main/java -name "*.java")
+
+# Run the main class
+java -cp bin com.supplychain.Main
+
+# Run an individual self test phase, e.g.:
+java -cp bin com.supplychain.selftest.MerkleSelfTest
 ```
 
-**Phase 2: Merkle Tree**
-```bash
-python3 src/core/merkle_tree.py
-```
+### Interactive Menu
 
-**Phase 3: Blockchain Ledger**
-```bash
-python3 src/core/blockchain.py
-```
+Running the application shows:
 
-**Phase 4: Supply Chain Demo**
-```bash
-python3 src/supply_chain/business_logic.py
 ```
-
-**Phase 5: Benchmarking**
-```bash
-python3 src/benchmarking/comparison.py
+Select an option:
+  1. Run all unit tests
+  2. Demo complete supply chain system
+  3. Run performance benchmark
+  4. Run everything
+  5. Exit
 ```
 
 ## 🎓 Educational Content
@@ -178,7 +265,6 @@ Based on benchmark results with 10,000 transactions:
 ✓ More storage efficient
 ✓ Flexible querying and reporting
 ✓ ACID transactions fully supported
-✓ Mature tooling and ecosystem
 
 ## 🔐 Security Model
 
@@ -221,161 +307,77 @@ Based on benchmark results with 10,000 transactions:
 ### Hybrid Approach (Recommended)
 ```
 Blockchain Layer:    High-value verification, multi-party trust, compliance
-Database Layer:     Internal operations, analytics, reporting
+Database Layer:      Internal operations, analytics, reporting
 ```
 
 ## 🧪 Testing
 
-### Unit Tests
+Testing is organized in two complementary layers:
 
-Each phase includes comprehensive unit tests:
+### 1. Menu-driven self tests (`selftest` package)
+Run inside the application (menu option 1) — no test framework needed:
 
-**Phase 1 Tests:**
-- Hash consistency
-- Avalanche effect
-- Hash uniqueness
-- Hash length verification
+**Phase 1 — SHA-256 hashing:** hash consistency, avalanche effect, uniqueness, length
+**Phase 2 — Merkle tree:** construction, proof generation/verification, invalid proof rejection, single item, odd counts, batch of 1000
+**Phase 3 — Blockchain ledger:** genesis block, chaining, tamper detection, product history
+**Phase 4 — Supply chain operations:** complete lifecycle, counterfeit detection, unauthorized manufacturers, batch verification
 
-**Phase 2 Tests:**
-- Tree construction
-- Proof generation and verification
-- Invalid proof rejection
-- Edge cases (single item, odd numbers)
-- Batch verification performance
+### 2. JUnit 5 tests (`src/test/java`)
+Run by Maven Surefire in CI:
 
-**Phase 3 Tests:**
-- Genesis block creation
-- Block chaining
-- Chain validation
-- Product history tracing
-- Tamper detection
-
-### Demo Scenarios
-
-**Complete Product Journey:**
-1. Register manufacturer
-2. Manufacture products (creates genesis transactions)
-3. Transfer to distributor
-4. Transfer to wholesaler
-5. Transfer to retailer
-6. Sell to consumer
-7. Verify product authenticity
-
-**Counterfeit Detection:**
-- Products not in registry are detected
-- Products with invalid origins are flagged
-- Tampered transactions break chain validation
-
-## 📈 Benchmarking Results
-
-The system includes a comprehensive benchmarking suite comparing blockchain vs traditional SQL database:
-
-```python
-# Run benchmark
-results = benchmark.run_benchmark(num_transactions=10000, num_products=1000)
+```bash
+mvn test
 ```
 
-Key findings documented in `src/benchmarking/comparison.py`:
-- Performance metrics (insertion, query, verification)
-- Storage efficiency analysis
-- Trade-off documentation
-- Recommendations for different scenarios
+Covers the crypto, merkle, ledger and service layers with the standard
+`org.junit.jupiter.api.Assertions` API (including the known SHA-256 test
+vector for `"abc"`).
 
 ## 🔧 Implementation Details
 
-### Transaction Structure
+### Transaction (typed value object)
 
-```python
-{
-    'product_id': 'PROD-001',
-    'sender': 'Factory-A',
-    'receiver': 'Distributor-B',
-    'location': 'Shanghai Manufacturing Hub',
-    'timestamp': '2026-08-28T10:30:00Z',
-    'metadata': {
-        'stage': 'manufacturing',
-        'batch_number': 'BATCH-2026-001'
-    }
+```java
+Transaction tx = Transaction.create(
+        "PROD-001",          // productId
+        "Factory-A",         // sender
+        "Distributor-B",     // receiver
+        "Shanghai Manufacturing Hub",
+        metadataMap);        // Map<String, Object> metadata
+
+String fingerprint = TransactionSerializer.hashOf(tx, hasher);
+```
+
+### Block (immutable entity)
+
+```java
+public final class Block {
+    // All fields private final — computed once, never mutated
+    public Block(int index, String timestamp, List<Transaction> transactions,
+                 String merkleRoot, String previousHash, int nonce, HashFunction hasher)
+    public String calculateHash()   // re-verifiable integrity
+    public List<Transaction> getTransactions()  // unmodifiable
 }
 ```
 
-### Block Structure
+### Wiring (composition root)
 
-```python
-{
-    'index': 1,
-    'timestamp': '2026-08-28T10:30:00Z',
-    'transactions': [...],
-    'merkle_root': 'abc123...',
-    'previous_hash': 'xyz789...',
-    'nonce': 0,
-    'hash': 'def456...'
-}
+```java
+HashFunction hasher = new Sha256Hasher();
+Blockchain ledger = new Blockchain(hasher);
+SupplyChainService service = new SupplyChainService(ledger);
 ```
 
-## 📚 Academic Context
+Swap the hash algorithm (e.g., SHA3-256) by providing another
+`HashFunction` implementation — zero domain code changes.
 
-This project addresses real-world software engineering challenges:
-
-### 1. Distributed Systems
-- No single point of control
-- Shared truth across untrusting parties
-- Consensus on data validity
-
-### 2. Data Structures & Algorithms
-- Binary trees (Merkle Trees)
-- Cryptographic hashing
-- Linked lists (blockchain)
-- Complexity analysis
-
-### 3. Security
-- Tamper-evident design
-- Cryptographic proofs
-- Authentication vs authorization
-
-### 4. Database Systems
-- ACID properties
-- Query optimization
-- Storage efficiency
-- Benchmarking methodology
-
-## 🎓 Learning Outcomes
-
-After completing this project, you will understand:
-
-1. **Cryptographic Foundations**
-   - How SHA-256 hashing works
-   - Why hash functions are essential for security
-   - Avalanche effect and its importance
-
-2. **Data Structures**
-   - Merkle Trees and their applications
-   - When to use binary trees
-   - Complexity analysis of tree operations
-
-3. **Blockchain Technology**
-   - How blocks are chained together
-   - Why blockchain is tamper-evident
-   - The role of consensus in distributed systems
-
-4. **System Design Trade-offs**
-   - Performance vs security
-   - Centralized vs decentralized
-   - When to use specific technologies
-
-5. **Real-World Applications**
-   - Supply chain tracking
-   - Counterfeit detection
-   - Provenance verification
-
-## 📝 Documentation
+## 📚 Documentation
 
 All code includes:
-- Comprehensive docstrings
-- Type hints
+- Comprehensive Javadoc comments
+- `package-info.java` per package explaining each layer's responsibility
+- Complexity analysis in the Javadoc of every data structure
 - Usage examples
-- Complexity analysis
-- Academic context
 
 ## 🔄 Future Enhancements
 
@@ -386,7 +388,8 @@ Potential improvements for production systems:
 3. **Privacy**: Implement zero-knowledge proofs for sensitive data
 4. **Scalability**: Layer 2 solutions for high throughput
 5. **IoT Integration**: Connect with physical sensors and RFID
-6. **GUI**: Web interface for consumers and administrators
+6. **Persistence**: Ledger repository backed by a database
+7. **REST API**: Web interface for consumers and administrators
 
 ## 📄 License
 
@@ -396,11 +399,9 @@ This is an educational project for demonstrating blockchain technology, DSA conc
 
 Blockchain Supply Chain Team
 - Implemented for educational purposes
-- Demonstrates core computer science principles
+- Demonstrates core computer science principles and clean architecture
 - Provides real-world context for theoretical concepts
 
 ---
 
 **Remember**: Blockchain secures digital records but cannot verify physical reality. The "Oracle Problem" remains the fundamental challenge connecting digital systems to the physical world. The solution requires IoT, RFID, and physical inspections in addition to blockchain technology.
-
-For questions or discussions about this implementation, refer to the detailed comments in each source file.

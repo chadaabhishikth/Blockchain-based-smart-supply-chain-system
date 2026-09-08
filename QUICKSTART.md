@@ -1,13 +1,14 @@
 # 🚀 Quick Start Guide
 
-## Blockchain-Based Smart Supply Chain System
+## Blockchain-Based Smart Supply Chain System (Java)
 
 Get up and running with your blockchain supply chain project in 5 minutes!
 
 ## 📋 Prerequisites
 
-- Python 3.6 or higher
-- No external dependencies required!
+- Java 11 or higher
+- Maven 3.6 or higher
+- SQLite JDBC driver (downloaded automatically by Maven)
 
 ## 🎯 Quick Start
 
@@ -15,42 +16,56 @@ Get up and running with your blockchain supply chain project in 5 minutes!
 
 ```bash
 cd Blockchain-based-smart-supply-chain-system
-echo "4" | python3 src/main.py
+mvn clean compile exec:java
 ```
 
-This will:
+Then enter `4` when prompted. This will:
 1. ✓ Run all unit tests
 2. ✓ Demonstrate the complete supply chain system
 3. ✓ Run performance benchmarks
 
+Or simply use the build script:
+
+```bash
+./build.sh all
+```
+
 ### Option 2: Run Individual Components
 
-**Test Cryptographic Hashing (Phase 1)**
+**Compile the project**
 ```bash
-python3 src/core/hash_utils.py
+mvn clean compile
 ```
 
-**Test Merkle Tree (Phase 2)**
+**Run all unit tests (Phases 1-4)**
 ```bash
-python3 src/core/merkle_tree.py
+mvn exec:java
+# Select option 1
 ```
 
-**Test Blockchain Ledger (Phase 3)**
+**Demo the complete supply chain system (Phase 4)**
 ```bash
-python3 src/core/blockchain.py
+mvn exec:java
+# Select option 2
 ```
 
-**Demo Supply Chain (Phase 4)**
+**Run the SQL vs Blockchain benchmark (Phase 5)**
 ```bash
-python3 src/supply_chain/business_logic.py
+mvn exec:java
+# Select option 3
 ```
 
-**Run Benchmark (Phase 5)**
+### Option 3: Without Maven
+
 ```bash
-python3 src/benchmarking/comparison.py
+# Compile all Java files
+javac -d bin $(find src/main/java -name "*.java")
+
+# Run the main class
+java -cp bin com.supplychain.Main
 ```
 
-## 🎓 What You'll See
+## ✅ What You Should See
 
 ### Phase 1: SHA-256 Hashing
 ```
@@ -168,56 +183,70 @@ After running this system, you should understand:
 
 ## 📝 Code Structure
 
+The project follows a layered architecture (`app → domain → crypto`):
+
 ```
-src/
-├── core/
-│   ├── hash_utils.py       # SHA-256 implementation
-│   ├── merkle_tree.py      # Merkle Tree with proofs
-│   └── blockchain.py       # Blockchain ledger
-├── supply_chain/
-│   └── business_logic.py  # Supply chain operations
-├── benchmarking/
-│   └── comparison.py      # SQL vs blockchain analysis
-└── main.py                # Entry point
+src/main/java/com/supplychain/
+├── Main.java                     # Thin entry point
+├── app/                          # Console application & demos
+│   ├── SupplyChainApplication.java
+│   └── demo/SupplyChainDemo.java
+├── crypto/                       # Hashing primitives
+│   ├── HashFunction.java         # Hash abstraction (interface)
+│   ├── Sha256Hasher.java         # SHA-256 implementation
+│   └── TransactionSerializer.java
+├── domain/                       # Business logic (pure, no I/O)
+│   ├── model/                    # Transaction, Block, Product, enums
+│   ├── merkle/                   # Merkle tree + proofs
+│   ├── ledger/Blockchain.java    # Immutable ledger
+│   ├── service/SupplyChainService.java
+│   └── dto/                      # Typed results
+├── benchmark/DatabaseBenchmark.java
+└── selftest/                     # Menu-driven tests (Phases 1-4)
+
+src/test/java/com/supplychain/    # JUnit 5 tests (mvn test)
 ```
 
 ## 🔧 Customization
 
-### Add New Transaction Types
-Edit `src/core/hash_utils.py`:
-```python
-def create_transaction(product_id, sender, receiver, location, metadata=None):
-    transaction = {
-        'product_id': product_id,
-        'sender': sender,
-        'receiver': receiver,
-        'location': location,
-        'timestamp': datetime.utcnow().isoformat() + 'Z',
-        'metadata': metadata or {}
-    }
-    return transaction
+### Add New Transaction Fields
+Edit `src/main/java/com/supplychain/domain/model/Transaction.java` and
+`src/main/java/com/supplychain/crypto/TransactionSerializer.java`:
+
+```java
+public Transaction(String productId, String sender, String receiver,
+                   String location, String timestamp, Map<String, Object> metadata) {
+    // add your field here — the canonical serializer picks it up automatically
+}
 ```
 
 ### Modify Verification Logic
-Edit `src/supply_chain/business_logic.py`:
-```python
-def verify_product(self, product_id: str) -> Dict[str, Any]:
-    # Add custom verification rules here
-    verification = self.verify_product(product_id)
-    return verification
+Edit `src/main/java/com/supplychain/domain/service/SupplyChainService.java`:
+```java
+public VerificationResult verifyProduct(String productId) {
+    // Add custom verification rules here
+}
 ```
 
 ### Change Hash Algorithm
-Edit `src/core/hash_utils.py`:
-```python
-def calculate_sha256(data: str) -> str:
-    # Replace with SHA-512, Blake2, etc.
-    return hashlib.sha256(data.encode('utf-8')).hexdigest()
+Implement the `HashFunction` interface — no domain code changes needed:
+```java
+public class Sha3Hasher implements HashFunction {
+    @Override
+    public String hash(String data) {
+        MessageDigest digest = MessageDigest.getInstance("SHA3-256");
+        return bytesToHex(digest.digest(data.getBytes(StandardCharsets.UTF_8)));
+    }
+}
+
+// Then wire it at the composition root (SupplyChainApplication):
+HashFunction hasher = new Sha3Hasher();
+Blockchain ledger = new Blockchain(hasher);
 ```
 
 ## 🎯 Next Steps
 
-1. **Understand the Code**: Read through each module's docstrings
+1. **Understand the Code**: Read through each class's Javadoc comments
 2. **Run the Tests**: Verify each component works independently
 3. **Analyze the Benchmark**: Understand the trade-offs
 4. **Read the README**: Get detailed academic context
@@ -226,27 +255,37 @@ def calculate_sha256(data: str) -> str:
 ## 📚 Documentation
 
 - **Main README**: Comprehensive project documentation
-- **Code Comments**: Each function has detailed docstrings
+- **Code Comments**: Each method has detailed Javadoc
 - **Academic Context**: Why these DSA concepts matter
 - **Benchmark Analysis**: When to use blockchain vs SQL
 
 ## 🐛 Troubleshooting
 
-**Import Errors?**
+**Build Errors?**
 ```bash
-cd src
-python3 main.py
+# Make sure Java 11+ and Maven are installed
+java -version
+mvn -version
+
+# Clean and rebuild
+mvn clean compile
+```
+
+**Maven not found?**
+The `build.sh` script can install Maven for you:
+```bash
+./build.sh compile
 ```
 
 **Slow Benchmark?**
-Reduce transaction count in `src/benchmarking/comparison.py`:
-```python
-results = benchmark.run_benchmark(num_transactions=1000, num_products=100)
+Reduce the transaction count in `src/main/java/com/supplychain/benchmark/DatabaseBenchmark.java`:
+```java
+benchmark.runBenchmark(1000, 100);  // transactions, products
 ```
 
 **Need Help?**
-Each module includes:
-- Detailed docstrings
+Each package includes a `package-info.java` explaining its responsibility, and each class has:
+- Detailed Javadoc comments
 - Usage examples
 - Complexity analysis
 - Academic references
@@ -258,17 +297,3 @@ Your system is working if:
 - ✓ All unit tests pass (option 1 in main menu)
 - ✓ Demonstration runs without errors
 - ✓ Benchmark completes and shows trade-offs
-- ✓ You understand O(log n) vs O(n) complexity
-
-## 🎉 Congratulations!
-
-You've successfully implemented a blockchain-based supply chain system with:
-
-- ✅ SHA-256 cryptographic hashing
-- ✅ Merkle Tree verification (O(log n))
-- ✅ Immutable blockchain ledger
-- ✅ Real-world supply chain operations
-- ✅ Performance benchmarking
-- ✅ Academic analysis
-
-Now you're ready to tackle even more complex distributed systems challenges! 🚀

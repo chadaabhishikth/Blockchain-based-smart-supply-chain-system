@@ -1,12 +1,3 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyc
-*.egg-info/
-dist/
-build/
-*.egg
-
 # Java
 *.class
 *.jar
@@ -35,19 +26,9 @@ logs/
 *.db
 /tmp/
 
-# Python virtual environments
-venv/
-env/
-.venv/
-
 # Documentation builds
 docs/_build/
 site/
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
 
 # Build artifacts
 bin/
