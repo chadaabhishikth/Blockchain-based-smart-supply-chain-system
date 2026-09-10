@@ -59,23 +59,6 @@
         .status-tampered { background-color: rgba(236, 91, 56, 0.3); color: #FF8A65; border: 1px solid var(--accent-terracotta); animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 0.8; } 50% { opacity: 1; } 100% { opacity: 0.8; } }
         
-        /* Palette Showcase Strip */
-        .palette-strip {
-            background: #FFFFFF;
-            border-bottom: 1px solid var(--border-color);
-            padding: 8px 36px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 12px;
-            color: var(--muted-olive);
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .palette-swatches { display: flex; align-items: center; gap: 10px; }
-        .swatch { display: flex; align-items: center; gap: 6px; font-weight: 600; }
-        .swatch-dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.1); }
-
         .container { max-width: 1200px; margin: 24px auto; padding: 0 20px; }
         
         /* Metrics Bar */
@@ -342,16 +325,7 @@
     </div>
 </header>
 
-<!-- Project Color Palette Display -->
-<div class="palette-strip">
-    <span><strong>Capstone Color Palette:</strong></span>
-    <div class="palette-swatches">
-        <span class="swatch"><span class="swatch-dot" style="background:#524646;"></span> Charcoal #524646</span>
-        <span class="swatch"><span class="swatch-dot" style="background:#A8A492;"></span> Olive Gray #A8A492</span>
-        <span class="swatch"><span class="swatch-dot" style="background:#FCF2E5;"></span> Warm Cream #FCF2E5</span>
-        <span class="swatch"><span class="swatch-dot" style="background:#EC5B38;"></span> Terracotta #EC5B38</span>
-    </div>
-</div>
+
 
 <div class="container">
     <!-- Top Metrics -->
@@ -696,7 +670,10 @@
     async function init() {
         const modeBadge = document.getElementById("runtimeMode");
         try {
-            const res = await fetch("/api/status");
+            if (window.location.hostname.includes("github.io")) {
+            throw new Error("GitHub Pages client-side mode");
+        }
+        const res = await fetch("/api/status");
             if (res.ok) {
                 useBackendApi = true;
                 modeBadge.innerText = "⚡ JAVA BACKEND ACTIVE";
@@ -1048,7 +1025,7 @@
                 localChain = JSON.parse(JSON.stringify(localBackupChain));
             }
         }
-        fb.innerHTML = "<span style="color:var(--success-green); font-weight:bold;">✅ Blockchain successfully restored to untampered state.</span>";
+        fb.innerHTML = '<span style="color:var(--success-green); font-weight:bold;">✅ Blockchain successfully restored to untampered state.</span>';
         await updateStatus();
         showToast("Blockchain restored to valid state.");
     }
