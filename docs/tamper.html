@@ -376,15 +376,15 @@
 
     <!-- Navigation Tabs -->
     <nav class="nav-tabs">
-        <a href="#trace" class="nav-tab active" data-tab="tab-trace" onclick="switchTab('tab-trace', this); return false;">🔍 Trace & Authenticate</a>
+        <a href="#trace" class="nav-tab" data-tab="tab-trace" onclick="switchTab('tab-trace', this); return false;">🔍 Trace & Authenticate</a>
         <a href="#merkle" class="nav-tab" data-tab="tab-merkle" onclick="switchTab('tab-merkle', this); return false;">🌳 Merkle Tree Visualizer</a>
         <a href="#explorer" class="nav-tab" data-tab="tab-explorer" onclick="switchTab('tab-explorer', this); return false;">🔗 Blockchain Explorer</a>
-        <a href="#tamper" class="nav-tab" data-tab="tab-tamper" onclick="switchTab('tab-tamper', this); return false;">🚨 Presentation Tamper Demo</a>
+        <a href="#tamper" class="nav-tab active" data-tab="tab-tamper" onclick="switchTab('tab-tamper', this); return false;">🚨 Presentation Tamper Demo</a>
         <a href="#benchmark" class="nav-tab" data-tab="tab-benchmark" onclick="switchTab('tab-benchmark', this); return false;">📊 SQL vs Blockchain</a>
     </nav>
 
     <!-- TAB 1: Trace & Verify -->
-    <div id="tab-trace" class="panel active">
+    <div id="tab-trace" class="panel">
         <div class="card">
             <div class="card-header">
                 <h2 class="card-title"><span>🔎</span> Consumer Product Authentication</h2>
@@ -434,7 +434,7 @@
     </div>
 
     <!-- TAB 4: Tamper Demo & Operations -->
-    <div id="tab-tamper" class="panel">
+    <div id="tab-tamper" class="panel active">
         <div class="card" style="border: 2px solid var(--accent-terracotta);">
             <div class="card-header" style="border-bottom-color: rgba(236,91,56,0.3);">
                 <h2 class="card-title" style="color: var(--accent-terracotta);"><span>🚨</span> Presentation Tamper Demonstration</h2>
