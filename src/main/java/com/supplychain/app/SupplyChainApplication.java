@@ -3,6 +3,7 @@ package com.supplychain.app;
 import com.supplychain.app.demo.SupplyChainDemo;
 import com.supplychain.benchmark.DatabaseBenchmark;
 import com.supplychain.selftest.SelfTestSuite;
+import com.supplychain.web.WebServer;
 
 import java.util.Scanner;
 
@@ -17,7 +18,7 @@ import java.util.Scanner;
  *   Blockchain    = in-memory blockchain over Sha256Hasher
  *   Service       = SupplyChainService over that blockchain
  *
- * The application layer may depend on the domain, crypto, benchmark and
+ * The application layer may depend on the domain, crypto, benchmark, web, and
  * self-test layers — never the other way around.
  *
  * Menu:
@@ -25,7 +26,8 @@ import java.util.Scanner;
  *   2. Demo complete supply chain system (demo layer)
  *   3. Run performance benchmark (benchmark layer)
  *   4. Run everything
- *   5. Exit
+ *   5. Launch Web Presentation Dashboard (http://localhost:8080)
+ *   6. Exit
  */
 public final class SupplyChainApplication {
 
@@ -39,6 +41,14 @@ public final class SupplyChainApplication {
      * Launch the console application.
      */
     public static void launch(String[] args) {
+        if (args != null && args.length > 0) {
+            for (String arg : args) {
+                if ("--web".equalsIgnoreCase(arg) || "-w".equalsIgnoreCase(arg) || "web".equalsIgnoreCase(arg)) {
+                    new SupplyChainApplication().startWebDashboard();
+                    return;
+                }
+            }
+        }
         new SupplyChainApplication().run();
     }
 
@@ -51,9 +61,10 @@ public final class SupplyChainApplication {
         System.out.println("  2. Demo complete supply chain system");
         System.out.println("  3. Run performance benchmark");
         System.out.println("  4. Run everything");
-        System.out.println("  5. Exit");
+        System.out.println("  5. Launch Web Presentation Dashboard (http://localhost:8080)");
+        System.out.println("  6. Exit");
 
-        System.out.print("\nEnter choice (1-5): ");
+        System.out.print("\nEnter choice (1-6): ");
         String choice = scanner.nextLine().trim();
 
         System.out.println();
@@ -72,10 +83,13 @@ public final class SupplyChainApplication {
                 runEverything();
                 break;
             case "5":
+                startWebDashboard();
+                break;
+            case "6":
                 System.out.println("\nExiting. Thank you for using the Blockchain Supply Chain System!\n");
                 break;
             default:
-                System.out.println("\nInvalid choice. Please enter 1, 2, 3, 4, or 5.");
+                System.out.println("\nInvalid choice. Please enter 1, 2, 3, 4, 5, or 6.");
                 break;
         }
 
@@ -179,5 +193,28 @@ public final class SupplyChainApplication {
         System.out.println("  - Trade-off analysis");
         System.out.println("  - Recommendations for real-world use");
         System.out.println();
+    }
+
+    private void startWebDashboard() {
+        int port = 8080;
+        try {
+            WebServer webServer = new WebServer(port);
+            webServer.start();
+
+            // Try opening default browser
+            try {
+                if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+                    java.awt.Desktop.getDesktop().browse(new java.net.URI("http://localhost:" + port));
+                }
+            } catch (Exception ignored) {
+            }
+
+            System.out.println("\n[Press ENTER in this console to stop the web server and exit]");
+            scanner.nextLine();
+            webServer.stop();
+            System.out.println("Web server stopped. Goodbye!");
+        } catch (Exception e) {
+            System.err.println("Failed to start web server: " + e.getMessage());
+        }
     }
 }

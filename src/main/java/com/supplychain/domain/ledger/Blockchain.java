@@ -3,6 +3,8 @@ package com.supplychain.domain.ledger;
 import com.supplychain.crypto.HashFunction;
 import com.supplychain.crypto.Sha256Hasher;
 import com.supplychain.crypto.TransactionSerializer;
+import com.supplychain.domain.dto.TransactionMerkleProof;
+import com.supplychain.domain.merkle.MerkleProofElement;
 import com.supplychain.domain.merkle.MerkleTree;
 import com.supplychain.domain.model.Block;
 import com.supplychain.domain.model.ProductHistoryEntry;
@@ -10,6 +12,7 @@ import com.supplychain.domain.model.Transaction;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +42,7 @@ public class Blockchain {
 
     private final HashFunction hasher;
     private final List<Block> chain = new ArrayList<>();
+    private final List<Block> backupChain = new ArrayList<>();
     private final List<Transaction> pendingTransactions = new ArrayList<>();
 
     public Blockchain() {
@@ -230,9 +234,21 @@ public class Blockchain {
      * @param tamperedLocation forged location
      */
     public void simulateTampering(int blockIndex, int transactionIndex, String tamperedLocation) {
-        Block target = chain.get(blockIndex);
+        if (blockIndex < 0 || blockIndex >= chain.size()) {
+            return;
+        }
 
+        // Save backup of original chain before tampering if not already saved
+        if (backupChain.isEmpty()) {
+            backupChain.addAll(chain);
+        }
+
+        Block target = chain.get(blockIndex);
         List<Transaction> tamperedTxs = new ArrayList<>(target.getTransactions());
+        if (transactionIndex < 0 || transactionIndex >= tamperedTxs.size()) {
+            return;
+        }
+
         Transaction original = tamperedTxs.get(transactionIndex);
         tamperedTxs.set(transactionIndex, original.withLocation(tamperedLocation));
 
@@ -249,10 +265,74 @@ public class Blockchain {
     }
 
     /**
+     * Restore the blockchain to its untampered state.
+     * Useful for live demonstrations after proving tamper detection.
+     *
+     * @return true if restored, false if no backup existed
+     */
+    public boolean restoreChain() {
+        if (backupChain.isEmpty()) {
+            return false;
+        }
+        chain.clear();
+        chain.addAll(backupChain);
+        backupChain.clear();
+        return true;
+    }
+
+    /**
+     * Generate an O(log n) Merkle proof for a specific transaction hash.
+     *
+     * @param targetTxHash cryptographic fingerprint of the transaction
+     * @return typed proof if found, or null if not found
+     */
+    public TransactionMerkleProof generateProofForTransaction(String targetTxHash) {
+        for (Block block : chain) {
+            List<String> txHashes = new ArrayList<>();
+            int targetIndex = -1;
+            String productId = null;
+
+            List<Transaction> txList = block.getTransactions();
+            for (int i = 0; i < txList.size(); i++) {
+                Transaction tx = txList.get(i);
+                String h = TransactionSerializer.hashOf(tx, hasher);
+                txHashes.add(h);
+                if (h.equals(targetTxHash)) {
+                    targetIndex = i;
+                    productId = tx.getProductId();
+                }
+            }
+
+            if (targetIndex != -1) {
+                MerkleTree tree = new MerkleTree(txHashes, hasher);
+                List<MerkleProofElement> proof = tree.generateProof(targetTxHash);
+                boolean verified = tree.verifyProof(targetTxHash, proof, block.getMerkleRoot());
+                return new TransactionMerkleProof(
+                        productId,
+                        targetTxHash,
+                        block.getIndex(),
+                        block.getHash(),
+                        block.getMerkleRoot(),
+                        proof,
+                        verified
+                );
+            }
+        }
+        return null;
+    }
+
+    /**
      * @return total number of blocks (including the genesis block)
      */
     public int getChainLength() {
         return chain.size();
+    }
+
+    /**
+     * @return unmodifiable view of all blocks in the chain
+     */
+    public List<Block> getChain() {
+        return Collections.unmodifiableList(chain);
     }
 
     /**

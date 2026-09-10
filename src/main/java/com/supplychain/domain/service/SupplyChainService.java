@@ -8,9 +8,11 @@ import com.supplychain.domain.dto.ManufactureResult;
 import com.supplychain.domain.dto.ProductVerification;
 import com.supplychain.domain.dto.Provenance;
 import com.supplychain.domain.dto.SupplyChainSummary;
+import com.supplychain.domain.dto.TransactionMerkleProof;
 import com.supplychain.domain.dto.TransferResult;
 import com.supplychain.domain.dto.VerificationResult;
 import com.supplychain.domain.ledger.Blockchain;
+import com.supplychain.domain.merkle.MerkleTree;
 import com.supplychain.domain.model.Block;
 import com.supplychain.domain.model.Product;
 import com.supplychain.domain.model.ProductHistoryEntry;
@@ -322,5 +324,85 @@ public class SupplyChainService {
             metadataMap.put("custom_metadata", new LinkedHashMap<>(metadata));
         }
         return metadataMap;
+    }
+
+    /**
+     * Generate an O(log n) cryptographic Merkle proof for a transaction.
+     *
+     * @param transactionHash hash of the transaction to prove
+     * @return typed Merkle proof or null
+     */
+    public TransactionMerkleProof getTransactionMerkleProof(String transactionHash) {
+        return ledger.generateProofForTransaction(transactionHash);
+    }
+
+    /**
+     * Find the most recent transaction hash for a product and generate its Merkle proof.
+     *
+     * @param productId product identifier
+     * @return proof or null
+     */
+    public TransactionMerkleProof getLatestProductMerkleProof(String productId) {
+        List<Block> chain = ledger.getChain();
+        for (int b = chain.size() - 1; b >= 0; b--) {
+            Block block = chain.get(b);
+            List<Transaction> txs = block.getTransactions();
+            for (int t = txs.size() - 1; t >= 0; t--) {
+                Transaction tx = txs.get(t);
+                if (productId.equals(tx.getProductId())) {
+                    String txHash = TransactionSerializer.hashOf(tx, hasher);
+                    return ledger.generateProofForTransaction(txHash);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * LIGHTWEIGHT CLIENT VERIFICATION (SPV Mode)
+     * ==========================================
+     *
+     * Verifies that a transaction is authentic and committed to a block
+     * using ONLY the transaction hash, the Merkle proof siblings, and the
+     * block's Merkle root.
+     *
+     * COMPLEXITY: O(log n) time, O(1) space.
+     * Leaves the client free from having to download or store the full blockchain!
+     *
+     * @param proof the cryptographic Merkle proof
+     * @return true if the proof reconstructs the block's Merkle root
+     */
+    public boolean verifyLightweightProof(TransactionMerkleProof proof) {
+        if (proof == null || proof.getTransactionHash() == null || proof.getBlockMerkleRoot() == null) {
+            return false;
+        }
+        MerkleTree verifier = new MerkleTree(Collections.emptyList(), hasher);
+        return verifier.verifyProof(proof.getTransactionHash(), proof.getProofElements(), proof.getBlockMerkleRoot());
+    }
+
+    /**
+     * Simulate tampering for presentation demonstrations.
+     */
+    public void simulateTampering(int blockIndex, int transactionIndex, String forgedLocation) {
+        ledger.simulateTampering(blockIndex, transactionIndex, forgedLocation);
+    }
+
+    /**
+     * Restore the blockchain after a tampering demonstration.
+     */
+    public boolean restoreChain() {
+        return ledger.restoreChain();
+    }
+
+    public Blockchain getLedger() {
+        return ledger;
+    }
+
+    public Map<String, Product> getProducts() {
+        return Collections.unmodifiableMap(products);
+    }
+
+    public Set<String> getAuthorizedManufacturers() {
+        return Collections.unmodifiableSet(authorizedManufacturers);
     }
 }

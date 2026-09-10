@@ -65,7 +65,13 @@ public final class SupplyChainSelfTest {
         Check.that(verification.getJourneyLength() == 4, "Journey must contain 4 steps, got "
                 + verification.getJourneyLength());
 
-        out.println("✓ Complete product lifecycle verified (manufacture → sale)");
+        // Light-client Merkle Proof verification test
+        com.supplychain.domain.dto.TransactionMerkleProof proof = service.getLatestProductMerkleProof("PROD-LIFE-001");
+        Check.that(proof != null, "Must generate Merkle proof for product transaction");
+        Check.that(proof.isVerified(), "Merkle proof must be valid against block Merkle root");
+        Check.that(service.verifyLightweightProof(proof), "Lightweight O(log n) client verification must succeed");
+
+        out.println("✓ Complete product lifecycle verified (manufacture → sale + Merkle light verification)");
     }
 
     public void testCounterfeitDetection() {
